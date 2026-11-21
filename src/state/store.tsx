@@ -18,6 +18,7 @@ import { decodeHintDismissedRecently, loadChats, loadHeard, loadPeople, saveChat
 import { groupTitle, isGroupId } from './groups';
 import type { Group } from './groups';
 import { clearSnapImages, deleteSnapImage, loadSnapImages, newImageId, saveSnapImage } from './snapImages';
+import { loadMicId } from './devices';
 
 export type { Account, ClaimResult } from './account';
 export type { RadioState } from '../audio/engine';
@@ -249,7 +250,7 @@ export function AppProvider({ children, transport: given }: { children: ReactNod
   const { transport, engine, diag } = useMemo((): { transport: Transport; engine: AudioEngine | null; diag: RadioDiag | null } => {
     if (given) return { transport: given, engine: null, diag: null };
     if (!hasWebAudio()) return { transport: createMockTransport(), engine: null, diag: null };
-    const engine = createAudioEngine();
+    const engine = createAudioEngine({ micId: loadMicId });
     const transport = createAudioTransport({
       engine,
       self: () => selfRef.current ?? NOBODY,

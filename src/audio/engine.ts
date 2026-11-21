@@ -13,7 +13,17 @@ export interface AudioEngine {
   play(samples: Float32Array, onProgress?: (p: number) => void): { done: Promise<void>; stop(): void };
   /** What the browser actually gave us (for the diagnostics panel); null before the mic runs. */
   details?(): EngineDetails | null;
+  /** Reopens the mic (e.g. another one was chosen); does nothing while it is off. */
+  restart?(): Promise<void>;
 }
+
+export interface AudioEngineOptions {
+  /** The chosen microphone's deviceId, read on every mic start; null/empty = the system default. */
+  micId?: () => string | null;
+}
+
+/** Raw input for the modem: no echo cancellation, noise suppression or gain control. */
+const MIC_CONSTRAINTS: MediaTrackConstraints = { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 1 };
 
 export interface EngineDetails {
   /** Mic track label and the settings actually applied (EC/NS/AGC, sample rate, device). */
@@ -68,7 +78,7 @@ export function hasWebAudio(): boolean {
 const isDenied = (e: unknown) =>
   e instanceof Error && ['NotAllowedError', 'SecurityError', 'PermissionDeniedError'].includes(e.name);
 
-export function createAudioEngine(): AudioEngine {
+export function createAudioEngine(opts: AudioEngineOptions = {}): AudioEngine {
   let ctx: AudioContext | null = null;
   let mic: Exclude<RadioState, 'transmitting'> = 'off';
   let last: RadioState = 'off';
@@ -172,6 +182,20 @@ export function createAudioEngine(): AudioEngine {
     };
   }
 
+  /** The chosen mic if it opens, else the default one (unplugged, OverconstrainedError…). */
+  async function openMic(): Promise<MediaStream> {
+    const id = opts.micId?.();
+    if (id) {
+      try {
+        return await navigator.mediaDevices.getUserMedia({ audio: { ...MIC_CONSTRAINTS, deviceId: { exact: id } } });
+      } catch (e) {
+        if (isDenied(e)) throw e;
+        console.warn('[radio] chosen microphone unavailable, using the default', e);
+      }
+    }
+    return navigator.mediaDevices.getUserMedia({ audio: { ...MIC_CONSTRAINTS } });
+  }
+
   async function run() {
     mic = 'starting';
     notify();
@@ -181,9 +205,7 @@ export function createAudioEngine(): AudioEngine {
       if (!navigator.mediaDevices?.getUserMedia) throw new Error('getUserMedia is not available');
       let stream: MediaStream;
       try {
-        stream = await navigator.mediaDevices.getUserMedia({
-          audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 1 },
-        });
+        stream = await openMic();
       } catch (e) {
         mic = isDenied(e) ? 'denied' : 'error';
         return;
@@ -228,11 +250,24 @@ export function createAudioEngine(): AudioEngine {
         if (ctx) resume(ctx);
         return Promise.resolve();
       }
-      starting ??= run().finally(() => {
-        starting = null;
+      if (!starting) {
+        const p: Promise<void> = run().finally(() => {
+          if (starting === p) starting = null;
+          notify();
+        });
+        starting = p;
+      }
+      return starting;
+    },
+    restart() {
+      if (mic === 'off' && !starting) return Promise.resolve();
+      // Queued after any start in flight; run() swaps the old capture graph for the new one.
+      const p: Promise<void> = (starting ?? Promise.resolve()).then(run).finally(() => {
+        if (starting === p) starting = null;
         notify();
       });
-      return starting;
+      starting = p;
+      return p;
     },
     onState(fn) {
       stateFns.add(fn);

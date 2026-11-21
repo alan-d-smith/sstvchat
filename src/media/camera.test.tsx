@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, render } from '@testing-library/react';
 import { applyFilterPixels, captureSnap, filterCss, imageFileToSnap, portraitCrop, useCamera } from './camera';
 import type { CameraState } from './camera';
+import { saveDeviceId } from '../state/devices';
 
 function fakeCtx(withFilter = true) {
   const ctx = {
@@ -145,6 +146,45 @@ describe('useCamera', () => {
 
     unmount();
     expect(b.track.stop).toHaveBeenCalled();
+  });
+
+  it('opens the camera chosen in Settings, switches when it changes, and flips away from it', async () => {
+    localStorage.setItem('sstv.cameraId', 'desk-cam');
+    const a = stream();
+    const b = stream();
+    const c = stream();
+    const gum = vi.fn().mockResolvedValueOnce(a.stream).mockResolvedValueOnce(b.stream).mockResolvedValueOnce(c.stream);
+    mockMedia(gum);
+
+    render(<Probe active />);
+    await act(async () => {});
+    expect(gum.mock.calls[0][0].video.deviceId).toEqual({ exact: 'desk-cam' });
+    expect(gum.mock.calls[0][0].video.facingMode).toBeUndefined();
+
+    // Chosen while the camera is open: switches at once.
+    await act(async () => saveDeviceId('camera', 'usb-cam'));
+    expect(a.track.stop).toHaveBeenCalled();
+    expect(gum.mock.calls[1][0].video.deviceId).toEqual({ exact: 'usb-cam' });
+
+    await act(async () => cam.flip());
+    expect(b.track.stop).toHaveBeenCalled();
+    expect(gum.mock.calls[2][0].video.deviceId).toBeUndefined();
+    expect(gum.mock.calls[2][0].video.facingMode).toBe('environment');
+  });
+
+  it('falls back to facingMode when the chosen camera is gone', async () => {
+    localStorage.setItem('sstv.cameraId', 'unplugged');
+    const a = stream();
+    const gum = vi.fn()
+      .mockRejectedValueOnce(Object.assign(new Error('gone'), { name: 'OverconstrainedError' }))
+      .mockResolvedValueOnce(a.stream);
+    mockMedia(gum);
+    const { container } = render(<Probe active />);
+    await act(async () => {});
+    expect(gum).toHaveBeenCalledTimes(2);
+    expect(gum.mock.calls[1][0].video.facingMode).toBe('user');
+    expect(container.querySelector('video')!.srcObject).toBe(a.stream);
+    expect(cam.error).toBeNull();
   });
 
   it('does not ask for the camera while inactive', async () => {

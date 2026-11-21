@@ -10,6 +10,7 @@ import { Avatar } from '../components/Avatar';
 import { Icon } from '../components/Icon';
 import { Logo } from '../components/Logo';
 import { RadioPill } from '../components/RadioPill';
+import { SettingsSheet } from '../components/SettingsSheet';
 import { StartChat } from '../components/StartChat';
 import { ChatRow } from './ChatRow';
 import './Sidebar.css';
@@ -128,6 +129,7 @@ export function Sidebar() {
   const { chats, people, selectedChatId, selectChat, openSnap, self, openAccount } = useApp();
   const me: Person = self ? { id: self.id, name: self.name, seed: self.avatar, color: SELF.color } : SELF;
   const [query, setQuery] = useState('');
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const q = query.trim().toLowerCase();
   const shown = q ? chats.filter((c) => c.title.toLowerCase().includes(q)) : chats;
 
@@ -139,18 +141,27 @@ export function Sidebar() {
   return (
     <aside className="sidebar">
       <header className="sidebar__header">
-        <button
-          type="button"
-          className="sidebar__me"
-          aria-label={self ? `Your account: ${self.name}` : 'Your account'}
-          title={self?.name}
-          onClick={openAccount}
-        >
-          <span aria-hidden="true"><Avatar people={[me]} size={36} /></span>
-          <span className="sidebar__gear" aria-hidden="true">
+        <span className="sidebar__me-wrap">
+          <button
+            type="button"
+            className="sidebar__me"
+            aria-label={self ? `Your account: ${self.name}` : 'Your account'}
+            title={self?.name}
+            onClick={openAccount}
+          >
+            <span aria-hidden="true"><Avatar people={[me]} size={36} /></span>
+          </button>
+          <button
+            type="button"
+            className="sidebar__gear"
+            aria-label="Settings"
+            title="Settings"
+            aria-haspopup="dialog"
+            onClick={() => setSettingsOpen(true)}
+          >
             <Icon name="gear" filled size={12} />
-          </span>
-        </button>
+          </button>
+        </span>
         <span className="sidebar__brand">
           <span className="sidebar__logo">
             <Logo size={32} />
@@ -208,6 +219,8 @@ export function Sidebar() {
           <p className="sidebar__empty">No chats match “{query.trim()}”</p>
         )}
       </nav>
+
+      {settingsOpen && <SettingsSheet onClose={() => setSettingsOpen(false)} />}
     </aside>
   );
 }

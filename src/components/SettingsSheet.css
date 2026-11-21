@@ -1,0 +1,287 @@
+/* Settings: a bottom sheet on phones, a centred dialog on wider screens. Rendered into <body>. */
+
+.settings {
+  --settings-line: color-mix(in srgb, var(--text) 12%, transparent);
+
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  /* Scrim: black in both themes. */
+  background: rgb(0 0 0 / 0.45);
+  color: var(--text);
+  font-family: var(--font);
+  -webkit-tap-highlight-color: transparent;
+}
+
+:where(.settings) :where(button) {
+  font: inherit;
+  color: inherit;
+}
+
+.settings__panel {
+  display: flex;
+  flex-direction: column;
+  width: min(420px, 100%);
+  max-height: min(85dvh, 680px);
+  border-radius: 16px;
+  background: var(--bg-elev);
+  box-shadow: 0 12px 40px rgb(0 0 0 / 0.25);
+  outline: none;
+  animation: settings-in 180ms ease-out;
+}
+
+@keyframes settings-in {
+  from { opacity: 0; transform: translateY(8px); }
+}
+
+.settings__head {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 12px 6px 20px;
+}
+
+.settings__title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.settings__close {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--btn-neutral);
+  cursor: pointer;
+}
+
+.settings__body {
+  min-height: 0;
+  padding: 4px 16px 20px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* ---------- a device list: a rounded card of rows, the chosen one ticked ---------- */
+
+.settings__group {
+  min-width: 0;
+  margin: 14px 0 0;
+  padding: 0;
+  border: 0;
+}
+
+.settings__label {
+  padding: 0 4px 8px;
+  color: var(--text-2);
+  font-size: 13.5px;
+  font-weight: 700;
+}
+
+.settings__card {
+  overflow: hidden;
+  border-radius: 12px;
+  background: var(--btn-neutral);
+}
+
+.settings__option {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 48px;
+  padding: 0 14px 0 16px;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+/* Hairline between rows, inset like the labels. */
+.settings__option + .settings__option::before {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 16px;
+  border-top: 0.5px solid var(--settings-line);
+  content: '';
+}
+
+@media (hover: hover) {
+  .settings__option:hover {
+    background: color-mix(in srgb, var(--text) 5%, transparent);
+  }
+}
+
+.settings__option:active {
+  background: color-mix(in srgb, var(--text) 8%, transparent);
+}
+
+/* The real radio stays for keyboards and screen readers; the tick is what shows. */
+.settings__radio {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.settings__option:has(.settings__radio:focus-visible) {
+  outline: 2px solid var(--blue);
+  outline-offset: -2px;
+  border-radius: 12px;
+}
+
+.settings__option-label {
+  flex: 1;
+  min-width: 0;
+  padding: 12px 0;
+  overflow-wrap: anywhere;
+}
+
+.settings__check {
+  display: grid;
+  flex: none;
+  place-items: center;
+  color: var(--blue);
+  visibility: hidden;
+}
+
+.settings__radio:checked ~ .settings__check {
+  visibility: visible;
+}
+
+/* ---------- mic level ---------- */
+
+.settings__meter {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 12px 4px 0;
+}
+
+.settings__meter-track {
+  flex: 1;
+  height: 8px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: var(--btn-neutral);
+}
+
+.settings__meter-fill {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--green);
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 90ms linear;
+}
+
+.settings__meter-note {
+  flex: none;
+  color: var(--text-2);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.settings__link {
+  margin-left: 6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--blue);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.settings__tip {
+  margin: 8px 4px 0;
+  color: var(--text-2);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+/* ---------- names hidden until access is allowed ---------- */
+
+.settings__unlock {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 10px;
+  padding: 12px 12px 12px 16px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--blue) 12%, var(--bg-elev));
+}
+
+.settings__unlock-text {
+  flex: 1;
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.settings__allow {
+  flex: none;
+  height: 34px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 17px;
+  background: var(--blue);
+  /* White label on the brand blue in both themes. */
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.settings__allow:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.settings :focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+
+/* ---------- phones: a sheet from the bottom ---------- */
+
+@media (max-width: 767px) {
+  .settings {
+    align-items: flex-end;
+    padding: 0;
+  }
+
+  .settings__panel {
+    width: 100%;
+    max-height: 88dvh;
+    padding-bottom: env(safe-area-inset-bottom);
+    border-radius: 16px 16px 0 0;
+    animation-name: settings-up;
+    animation-duration: 220ms;
+  }
+
+  @keyframes settings-up {
+    from { transform: translateY(100%); }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .settings__panel {
+    animation: none;
+  }
+
+  .settings__meter-fill {
+    transition: none;
+  }
+}

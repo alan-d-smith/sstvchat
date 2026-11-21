@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { RefObject } from 'react';
+import { useDeviceId } from '../state/devices';
 
 /** Snap size: always portrait 3:4. */
 const W = 240;
@@ -203,6 +204,7 @@ export interface CameraState {
  * Streams the webcam into `videoRef` while `active` (getUserMedia, video only). Stops every track
  * when inactive or unmounted, and restarts on flip. Missing API, insecure context or a denied
  * permission all end in `error` with `ready` false — callers fall back to a placeholder snap.
+ * The camera chosen in Settings is used (and switched to at once) until the user flips.
  */
 export function useCamera(active: boolean): CameraState {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -210,6 +212,10 @@ export function useCamera(active: boolean): CameraState {
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [reported, setReported] = useState<Facing | null>(null);
+  const chosen = useDeviceId('camera');
+  /** The chosen camera the user flipped away from: facing decides until another is chosen. */
+  const [flippedFrom, setFlippedFrom] = useState<string | null>(null);
+  const deviceId = chosen && chosen !== flippedFrom ? chosen : null;
 
   useEffect(() => {
     if (!active) return;
@@ -226,11 +232,16 @@ export function useCamera(active: boolean): CameraState {
     };
 
     setError(null);
-    media
-      .getUserMedia({
-        audio: false,
-        video: { facingMode: facing, width: { ideal: 1280 }, height: { ideal: 960 } },
+    const size = { width: { ideal: 1280 }, height: { ideal: 960 } };
+    const byFacing = () => media.getUserMedia({ audio: false, video: { facingMode: facing, ...size } });
+    const open = deviceId
+      ? media.getUserMedia({ audio: false, video: { deviceId: { exact: deviceId }, ...size } }).catch((e: unknown) => {
+        // The chosen camera is gone (unplugged, OverconstrainedError): the usual one instead.
+        const name = (e as { name?: string })?.name;
+        return name === 'NotAllowedError' || name === 'SecurityError' ? Promise.reject(e) : byFacing();
       })
+      : byFacing();
+    open
       .then((s) => {
         if (!live) {
           s.getTracks().forEach((t) => t.stop());
@@ -263,9 +274,17 @@ export function useCamera(active: boolean): CameraState {
       }
       setReady(false);
     };
-  }, [active, facing]);
+  }, [active, facing, deviceId]);
 
-  const flip = useCallback(() => setFacing((f) => (f === 'user' ? 'environment' : 'user')), []);
+  const flip = useCallback(() => {
+    if (deviceId) {
+      // Off the chosen camera, to the side it is not on.
+      setFlippedFrom(deviceId);
+      setFacing((reported ?? facing) === 'user' ? 'environment' : 'user');
+    } else {
+      setFacing((f) => (f === 'user' ? 'environment' : 'user'));
+    }
+  }, [deviceId, reported, facing]);
   const mirrored = (reported ?? facing) === 'user';
 
   return { videoRef, ready, error, facing, mirrored, flip };

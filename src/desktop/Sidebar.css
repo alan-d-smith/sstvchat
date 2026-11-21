@@ -24,10 +24,16 @@
   border-bottom: 1px solid var(--border);
 }
 
-.sidebar__me {
+/* The avatar opens the profile; the gear badge on its corner is its own button (Settings). */
+.sidebar__me-wrap {
   position: relative;
   display: inline-flex;
   justify-self: start;
+}
+
+.sidebar__me {
+  position: relative;
+  display: inline-flex;
   padding: 0;
   border: 0;
   border-radius: 50%;
@@ -63,10 +69,30 @@
   place-items: center;
   width: 14px;
   height: 14px;
+  padding: 0;
+  border: 0;
   border-radius: 50%;
   background: var(--btn-neutral);
   box-shadow: 0 0 0 1.5px var(--bg);
   color: var(--text);
+  cursor: pointer;
+}
+
+/* A bigger target than the 14px badge, without covering much of the avatar. */
+.sidebar__gear::before {
+  position: absolute;
+  inset: -5px;
+  border-radius: 50%;
+  content: '';
+}
+
+.sidebar__gear:hover {
+  background: color-mix(in srgb, var(--btn-neutral) 80%, var(--text));
+}
+
+.sidebar__gear:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 1px;
 }
 
 .sidebar__logo {

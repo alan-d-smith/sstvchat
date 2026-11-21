@@ -89,6 +89,22 @@ describe('Sidebar', () => {
     expect(rowNames()).toEqual(chats.map((c) => c.title));
   });
 
+  it('the gear on your avatar opens Settings; the avatar still opens the profile', () => {
+    render(<Sidebar />);
+    fireEvent.click(screen.getByRole('button', { name: 'Your account' }));
+    expect(api.current.openAccount).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('dialog', { name: 'Settings' })).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
+    const dialog = screen.getByRole('dialog', { name: 'Settings' });
+    expect(within(dialog).getByRole('group', { name: 'Microphone' })).toBeInTheDocument();
+    expect(within(dialog).getByRole('group', { name: 'Camera' })).toBeInTheDocument();
+    expect(api.current.openAccount).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Close' }));
+    expect(screen.queryByRole('dialog', { name: 'Settings' })).toBeNull();
+  });
+
   it('filters rows by name as you type in Search', () => {
     render(<Sidebar />);
     fireEvent.change(screen.getByRole('searchbox', { name: 'Search' }), { target: { value: 'ju' } });
