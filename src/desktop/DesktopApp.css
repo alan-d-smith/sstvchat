@@ -1,0 +1,25 @@
+/* Desktop shell: sidebar | conversation | right pane (only while a camera or snap is open). */
+.desktop-app {
+  display: grid;
+  grid-template-columns: 309px minmax(320px, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  height: 100vh;
+  height: 100dvh;
+  /* Below 309 + 320 (+ 456) px the grid is clipped rather than scrolling the page sideways. */
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.desktop-app.has-pane {
+  grid-template-columns: 309px minmax(320px, 1fr) 456px;
+}
+
+/* Slots for Conversation and RightPane: full-height flex columns; children may use flex: 1 or height: 100%. */
+.desktop-app__main,
+.desktop-app__pane {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}

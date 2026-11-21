@@ -1,0 +1,331 @@
+/* Desktop sidebar. Sizes are CSS px measured from docs/reference/desktop-chat.png (2x). */
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  border-right: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+}
+
+/* ---------- header: me · logo · compose ---------- */
+
+.sidebar__header {
+  display: grid;
+  flex: none;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  height: 60px;
+  padding: 0 10px 0 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.sidebar__me {
+  position: relative;
+  display: inline-flex;
+  justify-self: start;
+}
+
+.sidebar__gear {
+  position: absolute;
+  right: -2px;
+  bottom: 0;
+  display: grid;
+  place-items: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--btn-neutral);
+  box-shadow: 0 0 0 1.5px var(--bg);
+  color: var(--text);
+}
+
+.sidebar__logo {
+  display: inline-flex;
+  /* Light grey outline (#BFBFBF-ish in light), derived from tokens so dark mode follows. */
+  color: color-mix(in srgb, var(--text-2) 50%, var(--bg));
+}
+
+.new-chat {
+  position: relative;
+  justify-self: end;
+}
+
+.sidebar__compose {
+  display: grid;
+  place-items: center;
+  width: 37px;
+  height: 37px;
+  padding: 0 0 0 2px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--blue);
+  /* White glyph on the brand blue in both themes. */
+  color: #fff;
+  cursor: pointer;
+}
+
+.sidebar__compose:hover {
+  background: color-mix(in srgb, var(--blue) 88%, var(--text));
+}
+
+.sidebar__compose:focus-visible,
+.sidebar .chat-row:focus-visible,
+.new-chat__person:focus-visible,
+.search-pill__clear:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+
+/* ---------- search ---------- */
+
+.sidebar__search {
+  display: flex;
+  flex: none;
+  align-items: center;
+  height: 60px;
+  padding: 0 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.search-pill {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  min-width: 0;
+  height: 37px;
+  padding: 0 8px 0 7px;
+  border: 1px solid var(--border-input);
+  border-radius: 999px;
+  background: var(--bg);
+}
+
+.search-pill:focus-within {
+  border-color: var(--text-2);
+}
+
+.search-pill__field {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  height: 100%;
+  color: var(--text);
+  cursor: text;
+}
+
+/* The reference magnifier is much heavier than the 2px icon set. */
+.search-pill__field .icon {
+  flex: none;
+  stroke-width: 3.4;
+}
+
+.search-pill__input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 15px;
+}
+
+.search-pill__input::placeholder {
+  color: var(--text-2);
+  opacity: 1;
+}
+
+.search-pill__input::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.search-pill__clear {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--btn-neutral);
+  color: var(--text-2);
+  cursor: pointer;
+}
+
+/* ---------- chat list ---------- */
+
+.sidebar__list {
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  /* Like the reference's overlay scrollbar: scrolls by wheel/keys, no gutter eating the rows. */
+  scrollbar-width: none;
+}
+
+.sidebar__list ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sidebar .chat-row {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 72px;
+  padding: 0 20px 0 10px;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+/* The reference shades the row in from the left; the shade covers the row's own separator. */
+.sidebar .chat-row:hover,
+.sidebar .chat-row.is-selected {
+  border-bottom-color: transparent;
+  background: linear-gradient(to right, var(--bg) 27%, var(--bg-hover) 97%);
+}
+
+.sidebar .chat-row:focus-visible {
+  outline-offset: -2px;
+}
+
+.sidebar .chat-row__avatar {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+}
+
+.sidebar .chat-row__text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  margin: 2px 0 0 12px;
+}
+
+.sidebar .chat-row__name {
+  overflow: hidden;
+  font-size: 16px;
+  line-height: 20px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.sidebar .chat-row.is-unread .chat-row__name {
+  font-weight: 700;
+}
+
+.sidebar .chat-row .status-line {
+  margin-top: 4px;
+  font-size: 12.5px;
+}
+
+/* Reference: glyph starts flush with the name and sits ~5px before the word. */
+.sidebar .chat-row .status-line__icon {
+  margin: 0 0.2em 0 -1.5px;
+}
+
+/* On desktop the reference shows unread items by the right-side indicator, not a leading icon. */
+.sidebar .chat-row .status-line[data-kind='new-snap'] .status-line__icon,
+.sidebar .chat-row .status-line[data-kind='new-chat'] .status-line__icon {
+  display: none;
+}
+
+.sidebar .chat-row__indicator {
+  display: inline-flex;
+  flex: none;
+  margin-left: 12px;
+}
+
+.sidebar__empty {
+  margin: 0;
+  padding: 24px 16px;
+  color: var(--text-2);
+  font-size: 14px;
+  text-align: center;
+}
+
+/* ---------- New Chat popover ---------- */
+
+.new-chat__popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  width: 264px;
+  max-height: min(420px, calc(100dvh - 80px));
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  background: var(--bg-elev);
+  box-shadow: 0 8px 28px color-mix(in srgb, var(--text) 16%, transparent);
+}
+
+.new-chat__title {
+  flex: none;
+  margin: 0;
+  padding: 14px 16px 8px;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.new-chat__list {
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  padding: 0 0 8px;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.new-chat__person {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 6px 16px;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 15px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.new-chat__person:hover:not(:disabled) {
+  background: var(--bg-hover);
+}
+
+.new-chat__person:focus-visible {
+  outline-offset: -2px;
+}
+
+.new-chat__person:disabled {
+  color: var(--text-2);
+  cursor: default;
+}
+
+.new-chat__name {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
