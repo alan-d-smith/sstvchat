@@ -1,0 +1,198 @@
+/*
+ * Mobile conversation, in the chat list's language (docs/reference/mobile-chat-list.png, 3x):
+ * 40px round grey buttons 8px from the edge, 16px side gutter for content. The thread pieces
+ * come from components/thread; only their placement is set here. Colours are tokens only.
+ */
+
+.m-conv {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+}
+
+/* ---------- header: back, avatar, name (+ live status) ---------- */
+
+.m-conv__head {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 10px;
+  height: calc(56px + env(safe-area-inset-top));
+  padding: env(safe-area-inset-top) 12px 0 8px;
+  border-bottom: 0.5px solid var(--border);
+}
+
+.m-conv__back {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--btn-neutral);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.m-conv__back .icon {
+  display: block;
+  margin-left: -2px;
+  stroke-width: 2.5;
+}
+
+.m-conv__back:active {
+  transform: scale(0.94);
+}
+
+.m-conv__avatar {
+  display: block;
+  flex: none;
+  line-height: 0;
+}
+
+.m-conv__titles {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+}
+
+.m-conv__name {
+  margin: 0;
+  overflow: hidden;
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 22px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.m-conv__titles .status-line {
+  margin-top: 1px;
+  font-size: 12px;
+  line-height: 16px;
+}
+
+/* ---------- thread ---------- */
+
+.m-conv__body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.m-conv__body > .thread {
+  padding: 16px 16px 12px;
+}
+
+/* iOS body size: one step up from the desktop thread's 16px. */
+.m-conv .msg__text,
+.m-conv .quote__text {
+  font-size: 17px;
+  line-height: 22px;
+}
+
+.m-conv .msg-label {
+  font-size: 12.5px;
+}
+
+.m-conv__presence {
+  flex: none;
+  padding: 0 16px 6px;
+}
+
+/* ---------- composer: camera, pill with mic, sticker / send ---------- */
+
+.m-compose {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 6px 8px calc(8px + env(safe-area-inset-bottom));
+}
+
+.m-compose button {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.m-compose button .icon {
+  display: block;
+}
+
+.m-compose button:active {
+  transform: scale(0.94);
+}
+
+.m-compose .m-compose__camera {
+  background: var(--btn-neutral);
+}
+
+.m-compose__pill {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  min-width: 0;
+  height: 40px;
+  padding: 0 11px 0 16px;
+  border-radius: 20px;
+  background: var(--btn-neutral);
+  cursor: text;
+}
+
+.m-compose__pill:focus-within {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text-2) 55%, transparent);
+}
+
+.m-compose__field {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  outline: none;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 16px;
+}
+
+.m-compose__field::placeholder {
+  color: var(--text-2);
+  opacity: 1;
+}
+
+.m-compose__mic {
+  display: block;
+  flex: none;
+  margin-left: 8px;
+  color: var(--text);
+  line-height: 0;
+}
+
+.m-compose .m-compose__send {
+  background: var(--blue);
+  color: #fff;
+}
+
+.m-compose .m-compose__send .icon {
+  margin-left: 2px;
+}

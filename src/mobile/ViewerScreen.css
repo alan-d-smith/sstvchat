@@ -1,0 +1,187 @@
+/*
+ * Mobile snap viewer: always black, whatever the theme. The stage is a size container so the
+ * 3:4 snap is as wide as the screen, or as tall as it when the screen is short, and centred.
+ * The overlay floats on the black band above the picture and pads for the status bar.
+ */
+
+.m-viewer {
+  position: relative;
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  overflow: hidden;
+  background: rgb(0 0 0 / calc(1 - var(--pull, 0) * 0.6));
+  color: #fff;
+  font-family: var(--font);
+  cursor: pointer;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.m-viewer__stage {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  container-type: size;
+}
+
+.m-viewer__snap {
+  width: min(100cqw, 100cqh * 3 / 4);
+  transform-origin: 50% 0;
+  transition: transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.m-viewer.is-dragging .m-viewer__snap {
+  transition: none;
+}
+
+/* ---------- overlay: progress, sender + readout, Stop, close ---------- */
+
+.m-viewer__top {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  padding: calc(env(safe-area-inset-top) + 6px) 8px 24px;
+  background: linear-gradient(rgb(0 0 0 / 0.45), rgb(0 0 0 / 0));
+  opacity: calc(1 - var(--pull, 0) * 2);
+  pointer-events: none;
+}
+
+.m-viewer__progress {
+  height: 3px;
+  margin: 0 2px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: rgb(255 255 255 / 0.3);
+}
+
+.m-viewer__progress > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #fff;
+  transition: width 120ms linear;
+}
+
+.m-viewer__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 52px;
+  padding: 6px 0 0 4px;
+}
+
+.m-viewer__avatar {
+  display: block;
+  flex: none;
+  line-height: 0;
+}
+
+.m-viewer__who {
+  flex: 1;
+  min-width: 0;
+  text-shadow: 0 1px 2px rgb(0 0 0 / 0.5);
+}
+
+.m-viewer__name {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 20px;
+}
+
+.m-viewer__name > span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.m-viewer__time {
+  flex: none;
+  color: rgb(255 255 255 / 0.7);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.m-viewer__readout {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  color: rgb(255 255 255 / 0.85);
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 18px;
+  white-space: nowrap;
+}
+
+.m-viewer__readout .icon {
+  flex: none;
+}
+
+.m-viewer__readout.is-live .icon {
+  color: var(--green);
+}
+
+.m-viewer button {
+  flex: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  color: #fff;
+  font: inherit;
+  cursor: pointer;
+  pointer-events: auto;
+  touch-action: manipulation;
+}
+
+.m-viewer button:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+
+.m-viewer button:active {
+  transform: scale(0.94);
+}
+
+.m-viewer .m-viewer__stop {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 13px 0 15px;
+  border-radius: 16px;
+  background: var(--red);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.m-viewer .m-viewer__close {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: none;
+  filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.5));
+}
+
+.m-viewer__close .icon {
+  stroke-width: 2.4;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .m-viewer__snap,
+  .m-viewer__progress > span {
+    transition: none;
+  }
+}
