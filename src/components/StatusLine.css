@@ -1,0 +1,52 @@
+/* Size comes from the parent row (desktop ~13px, mobile ~14px); the icon scales with it. */
+.status-line {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-2);
+  line-height: 1.35;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.status-line__icon {
+  display: inline-flex;
+  margin-right: 0.45em;
+  vertical-align: -0.22em;
+}
+
+.status-line__icon svg {
+  width: 1.2em;
+  height: 1.2em;
+}
+
+.status-line__word.is-strong {
+  font-weight: 600;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .status-line__icon--pulse svg {
+    animation: status-line-pulse 1.1s ease-in-out infinite;
+  }
+
+  .status-line__icon--wave path {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: status-line-wave 0.9s ease-in-out infinite;
+  }
+
+  .status-line__icon--wave path:nth-child(2) { animation-delay: -0.15s; }
+  .status-line__icon--wave path:nth-child(3) { animation-delay: -0.3s; }
+  .status-line__icon--wave path:nth-child(4) { animation-delay: -0.45s; }
+  .status-line__icon--wave path:nth-child(5) { animation-delay: -0.6s; }
+}
+
+@keyframes status-line-pulse {
+  0%, 100% { opacity: 1; transform: translateX(0); }
+  50% { opacity: 0.55; transform: translateX(2px); }
+}
+
+@keyframes status-line-wave {
+  0%, 100% { transform: scaleY(1); }
+  50% { transform: scaleY(0.4); }
+}

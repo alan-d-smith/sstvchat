@@ -1,0 +1,57 @@
+.avatar {
+  position: relative;
+  display: inline-block;
+  flex-shrink: 0;
+  border: 0 solid transparent;
+  border-radius: 50%;
+  vertical-align: middle;
+}
+
+.avatar--ring-blue { border-color: var(--blue); }
+.avatar--ring-green { border-color: var(--green); }
+
+.avatar__disc {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border-radius: 50%;
+  background: var(--avatar-bg);
+}
+
+.avatar__face {
+  position: absolute;
+  display: block;
+}
+
+/* One face: slightly zoomed so the head fills the circle like the reference. */
+.avatar--solo .avatar__face--0 { left: -11%; top: -3%; width: 122%; height: 122%; }
+
+/* Two faces: first in front, lower right; second behind, upper left. */
+.avatar--duo .avatar__face--0 { left: 24%; top: 14%; z-index: 2; width: 86%; height: 86%; }
+.avatar--duo .avatar__face--1 { left: -18%; top: 8%; z-index: 1; width: 76%; height: 76%; }
+
+/* Three faces: first centred in front, the others peeking in from each side behind. */
+.avatar--trio .avatar__face--0 { left: 3%; top: 12%; z-index: 3; width: 94%; height: 94%; }
+.avatar--trio .avatar__face--1 { left: -26%; top: 16%; z-index: 1; width: 70%; height: 70%; }
+.avatar--trio .avatar__face--2 { left: 56%; top: 16%; z-index: 2; width: 70%; height: 70%; }
+
+.avatar--duo .avatar__face--0,
+.avatar--trio .avatar__face--0 {
+  filter: drop-shadow(0 0 0.5px rgba(0, 0, 0, 0.35));
+}
+
+.avatar__badge {
+  position: absolute;
+  bottom: -4%;
+  left: -6%;
+  z-index: 4;
+  display: grid;
+  place-items: center;
+  width: 38%;
+  height: 38%;
+  border-radius: 50%;
+  background: var(--bg);
+  line-height: 1;
+}
