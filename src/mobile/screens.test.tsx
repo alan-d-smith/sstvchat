@@ -3,6 +3,10 @@ import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { AppProvider, useApp } from '../state/store';
 import type { AppApi } from '../state/store';
 import { createMockTransport } from '../sim/transport';
+import { chats as mockChats } from '../data/mock';
+import { saveChats, savePeople } from '../state/persist';
+import { ME } from '../types';
+import type { Chat, Person } from '../types';
 import { MobileApp } from './MobileApp';
 
 vi.mock('../media/placeholder', () => ({
@@ -29,6 +33,25 @@ function renderMobile() {
 }
 
 const chat = (id: string) => api.chats.find((c) => c.id === id)!;
+
+/** A server group chat and its members, saved as if by an earlier session. */
+const GROUP: Chat = {
+  id: 'g_roomies01', title: 'Roomies', isGroup: true, memberIds: ['sophie', 'ben', 'jen', ME],
+  status: { kind: 'opened', medium: 'chat', time: '1h' },
+  messages: [
+    { id: 'r1', senderId: 'sophie', type: 'text', text: 'omg almost missed my flight' },
+    { id: 'r7', senderId: 'sophie', type: 'text', text: 'Catch ya later. Home in a few.' },
+  ],
+};
+const MEMBERS: Record<string, Person> = {
+  sophie: { id: 'sophie', name: 'Sophie', seed: 13, color: '#0FADFF' },
+  ben: { id: 'ben', name: 'Ben', seed: 14, color: '#E83E6B' },
+  jen: { id: 'jen', name: 'Jen', seed: 15, color: '#3CB371' },
+};
+function withGroup() {
+  saveChats([GROUP, ...mockChats]);
+  savePeople(MEMBERS);
+}
 const readout = () => screen.getByTestId('viewer-readout');
 
 beforeEach(() => {
@@ -40,8 +63,9 @@ afterEach(() => { vi.useRealTimers(); });
 
 describe('mobile conversation', () => {
   it('shows the header, the thread and presence chips for a group; back returns to the list', () => {
+    withGroup();
     renderMobile();
-    act(() => api.setOverlay({ type: 'conversation', chatId: 'roomies' }));
+    act(() => api.setOverlay({ type: 'conversation', chatId: GROUP.id }));
     expect(screen.getByRole('heading', { name: 'Roomies' })).toBeInTheDocument();
     expect(screen.getByText('Catch ya later. Home in a few.')).toBeInTheDocument();
     const chips = screen.getByRole('list', { name: 'In this chat' });
@@ -60,8 +84,9 @@ describe('mobile conversation', () => {
   });
 
   it('Enter sends the trimmed text, clears the pill and shows it sending', () => {
+    withGroup();
     renderMobile();
-    act(() => api.setOverlay({ type: 'conversation', chatId: 'roomies' }));
+    act(() => api.setOverlay({ type: 'conversation', chatId: GROUP.id }));
     const input = screen.getByRole('textbox', { name: 'Send a chat' });
     expect(screen.queryByRole('button', { name: 'Send' })).toBeNull();
 
@@ -72,17 +97,18 @@ describe('mobile conversation', () => {
     expect(input).toHaveValue('');
     expect(screen.getByText('on the train')).toBeInTheDocument();
     expect(screen.getByText('Sending…')).toBeInTheDocument();
-    expect(chat('roomies').status.kind).toBe('transmitting');
+    expect(chat(GROUP.id).status.kind).toBe('transmitting');
   });
 
   it('does not send an empty chat', () => {
+    withGroup();
     renderMobile();
-    act(() => api.setOverlay({ type: 'conversation', chatId: 'roomies' }));
-    const before = chat('roomies').messages.length;
+    act(() => api.setOverlay({ type: 'conversation', chatId: GROUP.id }));
+    const before = chat(GROUP.id).messages.length;
     const input = screen.getByRole('textbox', { name: 'Send a chat' });
     fireEvent.change(input, { target: { value: '   ' } });
     fireEvent.submit(input.closest('form')!);
-    expect(chat('roomies').messages).toHaveLength(before);
+    expect(chat(GROUP.id).messages).toHaveLength(before);
   });
 
   it('camera button leaves the conversation for the camera tab, addressed to this chat', () => {

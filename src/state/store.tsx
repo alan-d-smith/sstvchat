@@ -82,7 +82,7 @@ type Action =
   | { type: 'reset' };
 
 const fresh = (chats: Chat[], extraPeople: Record<string, Person>): State => ({
-  chats, selectedChatId: 'roomies', pane: null, tab: 'chat', overlay: null,
+  chats, selectedChatId: chats[0]?.id ?? null, pane: null, tab: 'chat', overlay: null,
   capture: null, rxLabel: {}, rxPhase: {}, cameraTo: undefined, extraPeople,
 });
 const initial = (): State => fresh(loadChats() ?? mockChats, loadPeople());

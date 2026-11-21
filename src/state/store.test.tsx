@@ -4,6 +4,9 @@ import type { ReactNode } from 'react';
 import { AppProvider, useApp } from './store';
 import { createMockTransport } from '../sim/transport';
 import { ME } from '../types';
+import type { Chat } from '../types';
+import { chats as mockChats } from '../data/mock';
+import { saveChats } from './persist';
 
 vi.mock('../media/placeholder', () => ({
   makePlaceholderSnap: () => new ImageData(240, 320),
@@ -27,6 +30,15 @@ function setup(mobile = false) {
   return renderHook(() => useApp(), { wrapper });
 }
 
+/** A group chat (as synced from the server) whose members have no 1:1 chats here. */
+const GROUP: Chat = {
+  id: 'g_roomies01', title: 'Roomies', isGroup: true, memberIds: ['sophie', 'ben', 'jen', ME],
+  status: { kind: 'opened', medium: 'chat', time: '1h' },
+  messages: [{ id: 'r1', senderId: 'sophie', type: 'text', text: 'omg almost missed my flight' }],
+};
+/** Starts from the mock chats plus GROUP, as if saved by an earlier session. */
+const withGroup = () => saveChats([...mockChats, GROUP]);
+
 const advance = (ms: number) => act(async () => { vi.advanceTimersByTime(ms); });
 const chat = (r: ReturnType<typeof setup>, id: string) => r.result.current.chats.find((c) => c.id === id)!;
 
@@ -36,7 +48,7 @@ afterEach(() => { vi.useRealTimers(); });
 describe('AppProvider', () => {
   it('has initial state', () => {
     const r = setup();
-    expect(r.result.current.selectedChatId).toBe('roomies');
+    expect(r.result.current.selectedChatId).toBe(mockChats[0].id);
     expect(r.result.current.pane).toBeNull();
     expect(r.result.current.tab).toBe('chat');
   });
@@ -80,20 +92,21 @@ describe('AppProvider', () => {
   });
 
   it('sendText appends sending message then clears state', async () => {
+    withGroup();
     const r = setup();
-    act(() => r.result.current.sendText('roomies', 'hi'));
-    const last = () => chat(r, 'roomies').messages.at(-1)!;
+    act(() => r.result.current.sendText(GROUP.id, 'hi'));
+    const last = () => chat(r, GROUP.id).messages.at(-1)!;
     expect(last()).toMatchObject({ type: 'text', text: 'hi', senderId: ME, state: 'sending' });
     await advance(300);
     expect((last() as { state?: string }).state).toBeUndefined();
-    expect(chat(r, 'roomies').status).toMatchObject({ kind: 'delivered', medium: 'chat', time: 'now' });
+    expect(chat(r, GROUP.id).status).toMatchObject({ kind: 'delivered', medium: 'chat', time: 'now' });
   });
 
   it('send while receiving is queued', async () => {
     const r = setup();
     act(() => r.result.current.demoIncoming('julie', 'snap'));
-    act(() => r.result.current.sendText('roomies', 'yo'));
-    expect(chat(r, 'roomies').status.kind).toBe('queued');
+    act(() => r.result.current.sendText('moe', 'yo'));
+    expect(chat(r, 'moe').status.kind).toBe('queued');
   });
 
   it('openSnap resumes, finishes, and closing marks opened', async () => {
@@ -134,14 +147,14 @@ describe('AppProvider', () => {
 
   it('demoIncoming text grows then ends new-chat', async () => {
     const r = setup();
-    const target = () => r.result.current.chats.find((c) => c.memberIds.includes('jen') && c.status.kind === 'receiving');
-    act(() => r.result.current.demoIncoming('jen', 'text'));
+    const target = () => r.result.current.chats.find((c) => c.memberIds.includes('andy') && c.status.kind === 'receiving');
+    act(() => r.result.current.demoIncoming('andy', 'text'));
     await advance(60);
     const c = target()!;
     expect(c).toBeDefined();
     expect(c.status).toMatchObject({ kind: 'receiving', medium: 'chat' });
     const m = c.messages.at(-1) as { state?: string; text: string; senderId: string };
-    expect(m).toMatchObject({ senderId: 'jen', state: 'receiving' });
+    expect(m).toMatchObject({ senderId: 'andy', state: 'receiving' });
     const len1 = m.text.length;
     await advance(40);
     expect((target()!.messages.at(-1) as { text: string }).text.length).toBeGreaterThan(len1);
@@ -153,29 +166,31 @@ describe('AppProvider', () => {
 
   it('resetDemo restores mock state', () => {
     const r = setup();
-    act(() => r.result.current.sendText('roomies', 'hi'));
+    act(() => r.result.current.sendText('beatriz', 'hi'));
     act(() => r.result.current.openCamera());
     act(() => r.result.current.resetDemo());
-    expect(chat(r, 'roomies').messages.at(-1)!.id).toBe('r8');
+    expect(chat(r, 'beatriz').messages.at(-1)!.id).toBe('b1');
     expect(r.result.current.pane).toBeNull();
   });
 
   it('queued rx maps to the requested chat and gets a label once started', async () => {
+    withGroup();
     const r = setup();
     act(() => r.result.current.sendText('moe', 'busy'));
-    act(() => r.result.current.openSnap('roomies'));
+    act(() => r.result.current.openSnap(GROUP.id));
     const h = (r.result.current.pane as { handle: string }).handle;
     expect(r.result.current.rxLabel[h]).toBe('Robot36 · queued');
     await advance(400);
     expect(r.result.current.rxLabel[h]).toMatch(/^Robot36 · \d+% · 0:0\d$/);
-    expect(chat(r, 'roomies').status.kind).toBe('receiving');
+    expect(chat(r, GROUP.id).status.kind).toBe('receiving');
     expect(chat(r, 'sophie' as string)).toBeUndefined();
   });
 
   it('closing viewer on a queued rx cancels it', async () => {
+    withGroup();
     const r = setup();
     act(() => r.result.current.sendText('moe', 'busy'));
-    act(() => r.result.current.openSnap('roomies'));
+    act(() => r.result.current.openSnap(GROUP.id));
     const h = (r.result.current.pane as { handle: string }).handle;
     act(() => r.result.current.closePane());
     expect(r.result.current.rxLabel[h]).toBe('Robot36 · stopped');

@@ -1,7 +1,9 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AppApi } from '../state/store';
-import { chats, people } from '../data/mock';
+import { chats as mockChats, people } from '../data/mock';
+import { ME } from '../types';
+import type { Chat } from '../types';
 
 // Drive the sidebar from a fake store so calls can be asserted directly.
 const api = vi.hoisted(() => ({ current: null as unknown as AppApi }));
@@ -13,11 +15,19 @@ vi.mock('./RightPane', () => ({ RightPane: () => <div data-testid="right-pane" /
 import { Sidebar } from './Sidebar';
 import { DesktopApp } from './DesktopApp';
 
+/** The mock chats with a server group chat that has a new message, third in the list. */
+const GROUP: Chat = {
+  id: 'g_starfish01', title: 'Starfish Squad ✨', isGroup: true, memberIds: ['priya', 'tomasz', ME],
+  status: { kind: 'new-chat', medium: 'chat', time: '16m' },
+  messages: [{ id: 's1', senderId: 'priya', type: 'text', text: 'who is bringing snacks Saturday?' }],
+};
+const chats = [...mockChats.slice(0, 2), GROUP, ...mockChats.slice(2)];
+
 function fakeApi(over: Partial<AppApi> = {}): AppApi {
   return {
     people: Object.fromEntries(people.map((p) => [p.id, p])),
     chats,
-    selectedChatId: 'roomies',
+    selectedChatId: 'beatriz',
     pane: null,
     tab: 'chat',
     overlay: null,
@@ -98,8 +108,8 @@ describe('Sidebar', () => {
 
   it('selects a chat when its row is clicked', () => {
     render(<Sidebar />);
-    fireEvent.click(row(/Roomies/));
-    expect(api.current.selectChat).toHaveBeenCalledWith('roomies');
+    fireEvent.click(row(/Starfish Squad/));
+    expect(api.current.selectChat).toHaveBeenCalledWith('g_starfish01');
     expect(api.current.openSnap).not.toHaveBeenCalled();
   });
 
@@ -115,14 +125,14 @@ describe('Sidebar', () => {
 
   it('marks only the selected row with is-selected', () => {
     const { rerender } = render(<Sidebar />);
-    expect(row(/Roomies/)).toHaveClass('is-selected');
-    expect(row(/Roomies/)).toHaveAttribute('aria-current', 'true');
+    expect(row(/Beatriz/)).toHaveClass('is-selected');
+    expect(row(/Beatriz/)).toHaveAttribute('aria-current', 'true');
     expect(row(/Julie/)).not.toHaveClass('is-selected');
 
     api.current = fakeApi({ selectedChatId: 'julie' });
     rerender(<Sidebar />);
     expect(row(/Julie/)).toHaveClass('is-selected');
-    expect(row(/Roomies/)).not.toHaveClass('is-selected');
+    expect(row(/Beatriz/)).not.toHaveClass('is-selected');
   });
 
   it('shows the right-side indicator for a new snap and a new chat only', () => {
@@ -130,7 +140,7 @@ describe('Sidebar', () => {
     const indicator = (name: RegExp) => row(name).querySelector('.chat-row__indicator');
     expect(indicator(/Julie/)?.querySelector('[data-icon="square"]')).not.toBeNull();
     expect(indicator(/Starfish Squad/)?.querySelector('[data-icon="bubble"]')).not.toBeNull();
-    expect(indicator(/Roomies/)).toBeNull();
+    expect(indicator(/Moe S/)).toBeNull();
     expect(indicator(/Beatriz/)).toBeNull();
   });
 

@@ -19,7 +19,7 @@ function setup(initial?: string) {
 describe('SendToList', () => {
   it('lists every chat as a checkbox row', () => {
     setup();
-    expect(screen.getByRole('checkbox', { name: 'Roomies' })).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: 'Beatriz M' })).toBeInTheDocument();
     expect(screen.getByRole('checkbox', { name: '💎Julie💎' })).toBeInTheDocument();
     expect(screen.getByRole('checkbox', { name: 'Moe S' })).toBeInTheDocument();
   });
@@ -27,7 +27,7 @@ describe('SendToList', () => {
   it('preselects the initial chat only', () => {
     const { box } = setup('julie');
     expect(box('💎Julie💎')).toBeChecked();
-    expect(box('Roomies')).not.toBeChecked();
+    expect(box('Beatriz M')).not.toBeChecked();
     expect(box('Moe S')).not.toBeChecked();
   });
 
@@ -42,9 +42,9 @@ describe('SendToList', () => {
   it('disables Send while nothing is selected', () => {
     const { box, send } = setup();
     expect(send()).toBeDisabled();
-    fireEvent.click(box('Roomies'));
+    fireEvent.click(box('Beatriz M'));
     expect(send()).toBeEnabled();
-    fireEvent.click(box('Roomies'));
+    fireEvent.click(box('Beatriz M'));
     expect(send()).toBeDisabled();
   });
 
@@ -60,7 +60,7 @@ describe('SendToList', () => {
   it('filters rows by search but keeps hidden selections', () => {
     const { box, send, onSend } = setup('julie');
     fireEvent.change(screen.getByRole('searchbox', { name: 'Search' }), { target: { value: 'moe' } });
-    expect(screen.queryByRole('checkbox', { name: 'Roomies' })).toBeNull();
+    expect(screen.queryByRole('checkbox', { name: 'Beatriz M' })).toBeNull();
     fireEvent.click(box('Moe S'));
     fireEvent.click(send());
     expect(onSend).toHaveBeenCalledWith(['julie', 'moe']);

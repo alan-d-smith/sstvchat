@@ -5,6 +5,8 @@ import { AppProvider, recipientsFor, useApp } from './store';
 import type { Transport, TransportEvents } from '../sim/transport';
 import { chats as mockChats } from '../data/mock';
 import { ME } from '../types';
+import type { Chat } from '../types';
+import { saveChats } from './persist';
 
 vi.mock('../media/placeholder', () => ({
   makePlaceholderSnap: () => new ImageData(240, 320),
@@ -43,6 +45,11 @@ function setup() {
   const chat = (id: string) => r.result.current.chats.find((c) => c.id === id)!;
   return { r, transport, emit, chat, api: () => r.result.current };
 }
+
+/** A group chat as synced from the server. */
+const group = (id: string, members: string[], title = 'Roomies'): Chat => ({
+  id, title, isGroup: true, memberIds: [...members, ME], status: { kind: 'opened', medium: 'chat' }, messages: [],
+});
 
 const row = (v: number) => new Uint8ClampedArray(320 * 4).fill(v);
 /** Portrait pixel (x, y) of an image as [r, g, b, a]. */
@@ -86,15 +93,19 @@ describe('incoming routing', () => {
   });
 
   it('routes to the named group when the sender is in it, else to the 1:1 chat with the sender', () => {
+    saveChats([...mockChats, group('g_roomies01', ['sophie', 'ben', 'jen'])]);
     const { emit, chat } = setup();
-    emit('rx:start', 'arx-1', 'ben', 'text', 'two-tone', { chatId: 'roomies' });
-    expect(chat('roomies').messages.at(-1)).toMatchObject({ senderId: 'ben', state: 'receiving' });
+    emit('rx:start', 'arx-1', 'ben', 'text', 'two-tone', { chatId: 'g_roomies01' });
+    expect(chat('g_roomies01').messages.at(-1)).toMatchObject({ senderId: 'ben', state: 'receiving' });
     emit('rx:start', 'arx-2', 'julie', 'text', 'two-tone', { chatId: 'moe' });
     expect(chat('julie').messages.at(-1)).toMatchObject({ senderId: 'julie', state: 'receiving' });
   });
 
   it('addresses chat members minus this device', () => {
-    const chats = [...mockChats, { ...mockChats[0], id: 'zed', memberIds: ['zed', ME] }];
+    const chats = [
+      ...mockChats, { ...mockChats[0], id: 'zed', memberIds: ['zed', ME] },
+      group('roomies', ['sophie', 'ben', 'jen']), group('starfish', ['jen', 'ben', 'priya']),
+    ];
     expect(recipientsFor(chats, ['roomies'], 'ben')).toEqual(['sophie', 'jen']);
     expect(recipientsFor(chats, ['zed', 'moe'], 'x')).toEqual(['zed', 'moe']);
     expect(recipientsFor(chats, ['roomies', 'starfish'], 'jen')).toEqual(['sophie', 'ben', 'priya']);
@@ -283,13 +294,13 @@ describe('account', () => {
 
 describe('directory', () => {
   it('shows claimed users as people with their avatars, and re-reads them every 10 s', async () => {
-    let list = [{ name: 'zed', avatar: 42 }, { name: 'ben', avatar: 7 }];
+    let list = [{ name: 'zed', avatar: 42 }, { name: 'moe', avatar: 7 }];
     mockApi({ users: () => list });
     const { api } = setup();
     await flush();
     expect(api().people.zed).toMatchObject({ id: 'zed', name: 'zed', seed: 42 });
     // A demo person keeps their name but shows the avatar their claimed name picked.
-    expect(api().people.ben).toMatchObject({ name: 'Ben', seed: 7 });
+    expect(api().people.moe).toMatchObject({ name: 'Moe S', seed: 7 });
     list = [{ name: 'zed', avatar: 43 }];
     await act(async () => { vi.advanceTimersByTime(10_000); });
     await flush();

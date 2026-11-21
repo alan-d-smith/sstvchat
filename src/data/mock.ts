@@ -1,12 +1,9 @@
 import { ME } from '../types';
-import type { Chat, Message, Person } from '../types';
+import type { Chat, Person } from '../types';
 
 export const people: Person[] = [
   { id: 'beatriz', name: 'Beatriz M', seed: 11, color: '#00C67F' },
   { id: 'julie', name: '💎Julie💎', seed: 12, color: '#A05DCD' },
-  { id: 'sophie', name: 'Sophie', seed: 13, color: '#0FADFF' },
-  { id: 'ben', name: 'Ben', seed: 14, color: '#E83E6B' },
-  { id: 'jen', name: 'Jen', seed: 15, color: '#3CB371' },
   { id: 'moe', name: 'Moe S', seed: 17, color: '#0FADFF', badge: '😊' },
   { id: 'andy', name: 'Andy G', seed: 18, color: '#F23C57' },
   { id: 'callum', name: 'Callum B', seed: 19, color: '#3CB371' },
@@ -16,21 +13,6 @@ export const people: Person[] = [
   { id: 'imogen', name: 'Imogen Rae', seed: 23, color: '#3CB371' },
   { id: 'dara', name: 'Dara K', seed: 24, color: '#A05DCD' },
   { id: 'alexandria', name: 'Alexandria Montgomery-Featherstone', seed: 25, color: '#0FADFF' },
-];
-
-const roomiesThread: Message[] = [
-  { id: 'r1', senderId: 'sophie', type: 'text', text: 'omg almost missed my flight' },
-  { id: 'r2', senderId: 'sophie', type: 'text', text: 'I was running for my life 💀' },
-  { id: 'r3', senderId: ME, type: 'emoji', text: '😅' },
-  { id: 'r4', senderId: 'sophie', type: 'text', text: 'The gates were so far apart and this airport is a MAZE.' },
-  { id: 'r5', senderId: 'sophie', type: 'text', text: 'So out of breath! 9 minutes to spare!' },
-  {
-    id: 'r6', senderId: 'ben', type: 'quote',
-    quoted: { senderId: 'sophie', text: 'omg almost missed my flight', time: '4:37PM' },
-    text: 'So glad you made it.',
-  },
-  { id: 'r7', senderId: 'sophie', type: 'text', text: 'Catch ya later. Home in a few.' },
-  { id: 'r8', senderId: 'sophie', type: 'sticker', text: '👍' },
 ];
 
 export const chats: Chat[] = [
@@ -43,16 +25,6 @@ export const chats: Chat[] = [
     id: 'julie', title: '💎Julie💎', isGroup: false, memberIds: ['julie'],
     status: { kind: 'received', medium: 'chat', time: '16m', streak: 29 },
     messages: [{ id: 'j1', senderId: 'julie', type: 'text', text: 'lol yes' }],
-  },
-  {
-    id: 'roomies', title: 'Roomies', isGroup: true, memberIds: ['sophie', 'ben', 'jen', ME],
-    status: { kind: 'opened', medium: 'chat', time: '1h' },
-    messages: roomiesThread,
-  },
-  {
-    id: 'starfish', title: 'Starfish Squad ✨', isGroup: true, memberIds: ['jen', 'ben', 'priya', ME],
-    status: { kind: 'new-chat', medium: 'chat', time: '16m' },
-    messages: [{ id: 's1', senderId: 'priya', type: 'text', text: 'who is bringing snacks Saturday?' }],
   },
   {
     id: 'moe', title: 'Moe S', isGroup: false, memberIds: ['moe'],

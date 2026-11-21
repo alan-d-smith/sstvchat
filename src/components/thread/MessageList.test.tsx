@@ -5,22 +5,27 @@ import type { Chat, Message } from '../../types';
 import { MessageList } from './MessageList';
 import { ChatInput } from './ChatInput';
 import { PresenceChips } from './PresenceChips';
-import { people } from '../../data/mock';
 
-const api = vi.hoisted(() => ({ openSnap: vi.fn() }));
+const api = vi.hoisted(() => ({
+  openSnap: vi.fn(),
+  // The members of the group chat below.
+  people: [
+    { id: 'sophie', name: 'Sophie', seed: 13, color: '#0FADFF' },
+    { id: 'ben', name: 'Ben', seed: 14, color: '#E83E6B' },
+    { id: 'jen', name: 'Jen', seed: 15, color: '#3CB371' },
+  ],
+}));
+const people = api.people;
 
-vi.mock('../../state/store', async () => {
-  const { people: list } = await import('../../data/mock');
-  return {
-    useApp: () => ({
-      people: Object.fromEntries(list.map((p) => [p.id, p])),
-      openSnap: api.openSnap,
-    }),
-  };
-});
+vi.mock('../../state/store', () => ({
+  useApp: () => ({
+    people: Object.fromEntries(api.people.map((p) => [p.id, p])),
+    openSnap: api.openSnap,
+  }),
+}));
 
 const chatWith = (messages: Message[], extra: Partial<Chat> = {}): Chat => ({
-  id: 'roomies',
+  id: 'g_roomies01',
   title: 'Roomies',
   isGroup: true,
   memberIds: ['sophie', 'ben', 'jen', ME],
@@ -108,7 +113,7 @@ describe('MessageList', () => {
   it('renders an unopened incoming snap as a Snap button that opens it', () => {
     render(<MessageList chat={chatWith([{ id: '1', senderId: 'sophie', type: 'snap', opened: false }])} />);
     fireEvent.click(screen.getByRole('button', { name: 'Snap' }));
-    expect(api.openSnap).toHaveBeenCalledWith('roomies');
+    expect(api.openSnap).toHaveBeenCalledWith('g_roomies01');
   });
 
   it('does not offer to open a snap that was already opened', () => {

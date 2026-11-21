@@ -2,8 +2,6 @@ import { describe, expect, it } from 'vitest';
 import { chats, people } from './mock';
 import { ME } from '../types';
 
-const byName = (n: string) => people.find((p) => p.name === n)!;
-
 describe('mock data', () => {
   it('every chat member exists in people or is ME', () => {
     const ids = new Set(people.map((p) => p.id));
@@ -15,24 +13,16 @@ describe('mock data', () => {
     expect(new Set(people.map((p) => p.id)).size).toBe(people.length);
   });
 
-  it('lists the first five chats in order and at least 12 in total', () => {
+  it('lists the first five chats in order and at least 10 in total', () => {
     expect(chats.slice(0, 5).map((c) => c.title)).toEqual([
-      'Beatriz M', '💎Julie💎', 'Roomies', 'Starfish Squad ✨', 'Moe S',
+      'Beatriz M', '💎Julie💎', 'Moe S', 'Andy G', 'Callum B',
     ]);
-    expect(chats.length).toBeGreaterThanOrEqual(12);
+    expect(chats.length).toBeGreaterThanOrEqual(10);
   });
 
-  it('Roomies is a group thread mirroring the reference', () => {
-    const r = chats.find((c) => c.title === 'Roomies')!;
-    expect(r.isGroup).toBe(true);
-    expect([...r.memberIds].sort()).toEqual(
-      [byName('Sophie').id, byName('Ben').id, byName('Jen').id, ME].sort(),
-    );
-    expect(r.messages.length).toBeGreaterThanOrEqual(7);
-    const quote = r.messages.find((m) => m.type === 'quote');
-    expect(quote && quote.type === 'quote' && quote.quoted.time).toBe('4:37PM');
-    expect(r.messages.some((m) => m.type === 'emoji')).toBe(true);
-    expect(r.messages.some((m) => m.type === 'sticker')).toBe(true);
+  it('has no dummy group chats: groups come from the server', () => {
+    expect(chats.filter((c) => c.isGroup)).toEqual([]);
+    for (const c of chats) expect(c.memberIds.filter((m) => m !== ME)).toHaveLength(1);
   });
 
   it('has no incoming snaps or in-progress receives in the dummy data', () => {

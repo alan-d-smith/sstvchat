@@ -86,14 +86,14 @@ describe('mobile chat list', () => {
     renderMobile();
     expect(within(row('Beatriz M')).getByText('Opened')).toBeInTheDocument();
     expect(within(row('💎Julie💎')).getByText('Received')).toBeInTheDocument();
-    expect(within(row('Roomies')).getByText('Opened')).toBeInTheDocument();
+    expect(within(row('Moe S')).getByText('Delivered')).toBeInTheDocument();
     expect(screen.getByText('Alexandria Montgomery-Featherstone')).toBeInTheDocument();
   });
 
   it('tapping a row opens the conversation overlay and hides the bottom nav', () => {
     const s = renderMobile();
-    fireEvent.click(within(row('Roomies')).getByRole('button', { name: /^Roomies/ }));
-    expect(s.overlay()).toEqual({ type: 'conversation', chatId: 'roomies' });
+    fireEvent.click(within(row('Jess Alan')).getByRole('button', { name: /^Jess Alan/ }));
+    expect(s.overlay()).toEqual({ type: 'conversation', chatId: 'jess' });
     expect(screen.queryByRole('navigation', { name: 'Tabs' })).toBeNull();
   });
 
@@ -133,7 +133,7 @@ describe('mobile chat list', () => {
     const watchRow = row('Imogen Rae');
     expect(within(watchRow).getByRole('button', { name: 'Watch' })).toBeInTheDocument();
     expect(within(watchRow).queryByRole('button', { name: /send a snap/i })).toBeNull();
-    expect(within(row('Roomies')).queryByRole('button', { name: 'Watch' })).toBeNull();
+    expect(within(row('Moe S')).queryByRole('button', { name: 'Watch' })).toBeNull();
   });
 });
 

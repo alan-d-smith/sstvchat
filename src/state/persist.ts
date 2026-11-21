@@ -5,7 +5,8 @@ import { ME } from '../types';
 import type { Chat, Message, Person } from '../types';
 
 // v2: dropped the dummy Beatriz receive and Julie snap from the mock data.
-const CHATS_KEY = 'sstv.chats.v2';
+// v3: dropped the dummy group chats (groups now come from the server).
+const CHATS_KEY = 'sstv.chats.v3';
 const PEOPLE_KEY = 'sstv.people';
 const HEARD_KEY = 'sstv.heard';
 const HINT_KEY = 'sstv.decodeHintDismissedAt';
