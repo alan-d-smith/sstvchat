@@ -23,6 +23,13 @@ const F_WHITE = 2300;
 const F_LEADER = 1900;
 const F_BIT1 = 1100;
 const F_BIT0 = 1300;
+/**
+ * Every tone is sent this much higher than standard Robot36 (and the receiver mixes down by the
+ * same amount), moving the image from 1100–2300 Hz to 2600–3800 Hz: above the band where room
+ * chatter is loud, next to the two-tone text band. Timing and colour are unchanged; a standard
+ * SSTV decoder needs a matching frequency offset to read it.
+ */
+export const SSTV_SHIFT_HZ = 1500;
 
 // VIS: leader 300, break 10, leader 300, start 30, 7 data bits, parity, stop (30 each).
 const VIS_MS = 300 + 10 + 300 + 30 + 7 * 30 + 30 + 30;
@@ -63,7 +70,7 @@ const valueToHz = (v: number) => F_BLACK + (v * (F_WHITE - F_BLACK)) / 255;
  * Landscape 320×240 image → Robot36 audio (VIS + 240 lines), continuous phase.
  * Length is round(robot36DurationMs() * sampleRate / 1000) samples.
  */
-export function robot36Modulate(landscape: ImageData, sampleRate: number, amplitude = 0.8): Float32Array {
+export function robot36Modulate(landscape: ImageData, sampleRate: number, amplitude = 0.95): Float32Array {
   if (landscape.width !== W || landscape.height !== H) {
     throw new Error(`robot36Modulate expects ${W}x${H}, got ${landscape.width}x${landscape.height}`);
   }
@@ -89,7 +96,7 @@ export function robot36Modulate(landscape: ImageData, sampleRate: number, amplit
   // Emit `freq` until absolute time `endMs` (absolute times avoid cumulative rounding).
   const toneUntil = (freq: number, endMs: number) => {
     const end = Math.min(total, Math.round(endMs * msToN));
-    const dp = freq * dPerHz;
+    const dp = (freq + SSTV_SHIFT_HZ) * dPerHz;
     for (; n < end; n++) {
       out[n] = amplitude * Math.sin(phase);
       phase += dp;
@@ -235,7 +242,8 @@ export class Robot36Receiver {
     const fsd = sampleRate / this.dec;
     this.u = fsd / 1000;
     this.hzPerRad = fsd / TWO_PI;
-    const w0 = (TWO_PI * F_LEADER) / sampleRate;
+    // Mix the shifted signal back down: everything after this sees standard Robot36 frequencies.
+    const w0 = (TWO_PI * (F_LEADER + SSTV_SHIFT_HZ)) / sampleRate;
     this.rotC = Math.cos(w0);
     this.rotS = Math.sin(w0);
     const len = 2 * Math.round(LPF_HALF_SPAN_S * sampleRate) + 1;

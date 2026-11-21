@@ -119,7 +119,7 @@ describe('robot36', () => {
     expect(tx.length).toBe(Math.round(36.91 * 48000));
     let peak = 0;
     for (let i = 0; i < tx.length; i++) peak = Math.max(peak, Math.abs(tx[i]));
-    expect(peak).toBeLessThanOrEqual(0.8 + 1e-6);
+    expect(peak).toBeLessThanOrEqual(0.95 + 1e-6);
     expect(Math.abs(tx[0])).toBeLessThan(1e-3); // fade-in
   });
 

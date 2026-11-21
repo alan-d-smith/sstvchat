@@ -38,7 +38,7 @@ TypeScript that runs entirely in the browser.
 
 | | |
 |---|---|
-| 📸 **Snaps over SSTV** | Take a photo with the webcam or pick one from your gallery. Swipe the lens carousel to choose a filter (Normal, Mono or Warm). The snap is sent as a standard Robot36 SSTV transmission, so any SSTV decoder can read it. |
+| 📸 **Snaps over SSTV** | Take a photo with the webcam or pick one from your gallery. Swipe the lens carousel through 12 filters (Thermal, Glitch, Comic, Scanline and more). The snap is sent as Robot36 SSTV, shifted up 1500 Hz out of the speech band; a standard SSTV decoder can read it with a matching frequency offset. |
 | 💬 **Texts over two-tone FSK** | Chat messages are framed, checksummed and sent as 3000 / 4000 Hz audio, above the band where voices are loud. Incoming texts show a typing indicator from the moment their header is heard. |
 | 🎯 **Header-first addressing** | Every transmission opens with a short two-tone header saying who it's from and to. A listening device accepts only what's addressed to its username, and records it automatically. |
 | 🎧 **Always-on receiver** | Once enabled, the microphone keeps listening. Snaps record in the background whichever chat you have open, and land only in the sender's chat. |
@@ -55,7 +55,7 @@ TypeScript that runs entirely in the browser.
   Sender                                                            Receiver
  ┌──────────────┐    two-tone header      SSTV image (Robot36)    ┌──────────────┐
  │ type / snap  │ ─▶ "from alan to bea" ─▶ ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒ ─▶ │ mic (always  │
- │  → modulate  │    3000/4000 Hz FSK      1500–2300 Hz, ~37 s    │  on) → decode│
+ │  → modulate  │    3000/4000 Hz FSK      3000–3800 Hz, ~37 s    │  on) → decode│
  │  → speaker   │                                                 │  → chat      │
  └──────────────┘                                                 └──────────────┘
 ```
@@ -135,7 +135,7 @@ per-message identifier, so a device that hears the same transmission twice keeps
 |---|---|
 | Mode | Robot36 (VIS code 8), 320 × 240, BT.601 YCbCr, 4:2:0 |
 | Line | 9 ms sync · 3 ms porch · 88 ms Y · 4.5 ms separator · 1.5 ms porch · 44 ms chroma |
-| Frequencies | Sync 1200 Hz, black 1500 Hz, white 2300 Hz |
+| Frequencies | Standard Robot36 shifted up 1500 Hz: sync 2700 Hz, black 3000 Hz, white 3800 Hz (VIS leader 3400 Hz) |
 | Duration | ≈ 37 s |
 
 Snaps are portrait 240 × 320 images, rotated 90° into the landscape Robot36 frame and rotated
