@@ -3,6 +3,7 @@
 // nothing here changes what the radio does.
 
 import { FSK } from './fsk';
+import { robot36DurationMs } from './robot36';
 import type { AudioEngine } from './engine';
 
 export interface RadioStats {
@@ -19,6 +20,8 @@ export interface RadioStats {
   sstvDone: number;
   /** Snap headers whose SSTV image never started (no VIS). */
   visTimeouts: number;
+  /** Snap headers heard with a good CRC, whoever they were for (an SSTV image follows each). */
+  snapHeaders: number;
   /** Stretches of clear two-tone audio in which no frame was found (see createToneWatch). */
   undecodedTones: number;
 }
@@ -48,7 +51,7 @@ export const LOG_SIZE = 10;
 
 /** Counters and the decision log (bumped by the transport and the tone watch). */
 export function createRadioDiag(opts: { receivingImage?: () => boolean } = {}): RadioDiag {
-  const s: RadioStats = { bytes: 0, frames: 0, headers: 0, crcOk: 0, crcFail: 0, aborts: 0, sstvStarted: 0, sstvDone: 0, visTimeouts: 0, undecodedTones: 0 };
+  const s: RadioStats = { bytes: 0, frames: 0, headers: 0, crcOk: 0, crcFail: 0, aborts: 0, sstvStarted: 0, sstvDone: 0, visTimeouts: 0, snapHeaders: 0, undecodedTones: 0 };
   const entries: RadioLogEntry[] = [];
   return {
     stats: () => ({ ...s }),
@@ -273,6 +276,13 @@ export function createToneWatch(
   onUndecoded: () => void,
 ): () => void {
   const framesSeen = () => receiver.stats().frames;
+  // After any snap header an SSTV image follows (ours or someone else's): FSK frames can't come
+  // from it, so stay quiet for its airtime, in samples heard (or until our VIS wait gives up).
+  const imageS = (robot36DurationMs() + 2000) / 1000;
+  let heard = 0;
+  let quietUntil = 0;
+  let snaps = receiver.stats().snapHeaders;
+  let timeouts = receiver.stats().visTimeouts;
   let inStretch = false;
   let tone = 0;
   let marks = 0;
@@ -281,12 +291,18 @@ export function createToneWatch(
   let framesAtStart = 0;
   let fired = false;
   return engine.onSamples((chunk) => {
-    if (receiver.receivingImage()) {
+    const rate = engine.sampleRate;
+    const dur = chunk.length / rate;
+    heard += dur;
+    const st = receiver.stats();
+    if (st.snapHeaders !== snaps) quietUntil = heard + imageS;
+    if (st.visTimeouts !== timeouts) quietUntil = 0;
+    snaps = st.snapHeaders;
+    timeouts = st.visTimeouts;
+    if (receiver.receivingImage() || heard < quietUntil) {
       inStretch = false;
       return;
     }
-    const rate = engine.sampleRate;
-    const dur = chunk.length / rate;
     const which = fskTone(chunk, rate);
     if (which) {
       if (!inStretch) {

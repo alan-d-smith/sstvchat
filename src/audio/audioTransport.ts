@@ -167,6 +167,7 @@ export function createAudioTransport(opts: {
 
   function onPacket(p: Packet, crcOk: boolean) {
     diag.count(crcOk ? 'crcOk' : 'crcFail');
+    if (crcOk && p.kind === 'snap') diag.count('snapHeaders');
     if (rx.mode === 'idle') onHeader(p); // the parser never reported the header on its own
     const cur = rx;
     rx = IDLE;

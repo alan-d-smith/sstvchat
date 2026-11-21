@@ -7,6 +7,7 @@ import { encodePacket } from './packet';
 import { FSK, fskModulate } from './fsk';
 import { robot36Modulate } from './robot36';
 import { createMockTransport } from '../sim/transport';
+import { rotateCW } from '../sim/rotate';
 
 const RATE = 48000;
 const sine = (freq: number, amp: number, n = RATE / 5) =>
@@ -160,6 +161,44 @@ describe('undecoded-tone watch', () => {
     w.hear(room(twoTone(300, 4))); // past the VIS timeout the FSK receiver listens again
     expect(w.t.diag.stats().visTimeouts).toBe(1);
     expect(w.hits).toEqual([1]);
+  });
+
+  it('does not judge the image airtime after anyone’s snap header', () => {
+    const w = watch();
+    const header = fskModulate(encodePacket({ kind: 'snap', from: 'alice', fromName: '', to: ['carol'], chatId: 'carol', mode: 'Robot36', id: 'sn03', text: '' }), RATE);
+    const audio = new Float32Array(header.length + RATE * 3.6);
+    audio.set(header);
+    audio.set(twoTone(100, 3), header.length + RATE * 0.6); // whatever the image period sounds like
+    w.hear(room(audio));
+    expect(w.t.diag.stats()).toMatchObject({ snapHeaders: 1, frames: 1 });
+    expect(w.hits).toEqual([]);
+    w.hear(new Float32Array(RATE * 40)); // the image airtime is over
+    w.hear(room(twoTone(100, 3)));
+    expect(w.hits).toEqual([1]);
+  });
+
+  it('stays quiet through someone else’s snap, even with dropped audio', () => {
+    const w = watch();
+    // The browser test's snap: colour bands, a white diagonal, a checkerboard.
+    const portrait = new ImageData(240, 320);
+    const bands = [[230, 40, 40], [40, 190, 80], [40, 90, 230], [245, 225, 50]];
+    for (let y = 0; y < 320; y++) {
+      for (let x = 0; x < 240; x++) {
+        let c = bands[Math.min(3, Math.floor(y / 64))];
+        if (y >= 256) c = ((x >> 4) + (y >> 4)) & 1 ? [255, 255, 255] : [0, 0, 0];
+        if (Math.abs(x - (y * 240) / 320) < 3) c = [255, 255, 255];
+        portrait.data.set([c[0], c[1], c[2], 255], (y * 240 + x) * 4);
+      }
+    }
+    const header = fskModulate(encodePacket({ kind: 'snap', from: 'alice', fromName: '', to: ['carol'], chatId: 'carol', mode: 'Robot36', id: 'sn02', text: '' }), RATE);
+    // The image as a starved capture delivers it: 10 ms lost every 60 ms.
+    const image = robot36Modulate(rotateCW(portrait), RATE).filter((_, i) => i % 2880 < 2400);
+    const audio = new Float32Array(header.length + RATE * 0.3 + image.length);
+    audio.set(header);
+    audio.set(image, header.length + RATE * 0.3);
+    w.hear(room(audio));
+    expect(w.t.diag.stats()).toMatchObject({ snapHeaders: 1, sstvStarted: 0 });
+    expect(w.hits).toEqual([]);
   });
 
   it('ignores SSTV images, speech-like sound and silence', () => {
