@@ -1,0 +1,79 @@
+/* "No chats yet": the chat list before there is any chat. Matches the conversation pane's empty state. */
+
+.empty-chats {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40px 24px 32px;
+  color: var(--text);
+  text-align: center;
+}
+
+.empty-chats__icon {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  margin-bottom: 12px;
+  border-radius: 50%;
+  background: var(--btn-neutral);
+  color: var(--text-2);
+}
+
+.empty-chats__title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.empty-chats__text {
+  max-width: 260px;
+  margin: 4px 0 0;
+  color: var(--text-2);
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.empty-chats__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.empty-chats__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 16px 0 12px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--btn-neutral);
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+/* The brand yellow of the add-friend buttons, with their dark ink. */
+.empty-chats__btn--friends {
+  background: var(--yellow);
+  color: var(--on-accent, #000);
+}
+
+.empty-chats__btn:hover {
+  background: color-mix(in srgb, var(--btn-neutral) 88%, var(--text));
+}
+
+.empty-chats__btn--friends:hover {
+  background: color-mix(in srgb, var(--yellow) 90%, var(--on-accent, #000));
+}
+
+.empty-chats__btn:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}

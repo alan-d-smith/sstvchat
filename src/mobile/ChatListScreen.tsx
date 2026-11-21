@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { Avatar } from '../components/Avatar';
+import { EmptyChats } from '../components/EmptyChats';
 import { Icon } from '../components/Icon';
 import { RadioPill } from '../components/RadioPill';
 import { SettingsSheet } from '../components/SettingsSheet';
@@ -146,12 +147,18 @@ export function ChatListScreen() {
           </button>
         </div>
 
-        {groupsOnly && !chats.some((c) => c.isGroup) && <p className="m-chats__empty">No group chats yet</p>}
-        <ul className="m-chats__list">
-          {(groupsOnly ? chats.filter((c) => c.isGroup) : chats).map((chat) => (
-            <MobileChatRow key={chat.id} chat={chat} />
-          ))}
-        </ul>
+        {chats.length === 0 ? (
+          <EmptyChats onAddFriends={openAdd} onNewChat={() => setComposing(true)} />
+        ) : (
+          <>
+            {groupsOnly && !chats.some((c) => c.isGroup) && <p className="m-chats__empty">No group chats yet</p>}
+            <ul className="m-chats__list">
+              {(groupsOnly ? chats.filter((c) => c.isGroup) : chats).map((chat) => (
+                <MobileChatRow key={chat.id} chat={chat} />
+              ))}
+            </ul>
+          </>
+        )}
       </div>
 
       <button type="button" className="m-fab" aria-label="New chat" aria-haspopup="dialog" onClick={() => setComposing(true)}>

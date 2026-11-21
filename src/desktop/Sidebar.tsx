@@ -7,6 +7,7 @@ import { useFriends } from '../state/friendsContext';
 import { addFriendsLabel, badgeText } from '../state/friends';
 import { AddFriends } from '../components/AddFriends';
 import { Avatar } from '../components/Avatar';
+import { EmptyChats } from '../components/EmptyChats';
 import { Icon } from '../components/Icon';
 import { Logo } from '../components/Logo';
 import { RadioPill } from '../components/RadioPill';
@@ -15,11 +16,11 @@ import { StartChat } from '../components/StartChat';
 import { ChatRow } from './ChatRow';
 import './Sidebar.css';
 
-/** The local user before a name is claimed. Mock people stop short of seed 16, so it is free for "me". */
+/** The local user before a name is claimed. */
 const SELF: Person = { id: ME, name: 'Me', seed: 16, color: '#F23C57' };
 
-function NewChat({ onPick }: { onPick(chatId: string): void }) {
-  const [open, setOpen] = useState(false);
+/** Compose button with the New Chat popover under it (`open` is held by the sidebar). */
+function NewChat({ open, setOpen, onPick }: { open: boolean; setOpen(open: boolean): void; onPick(chatId: string): void }) {
   const wrap = useRef<HTMLDivElement>(null);
   const button = useRef<HTMLButtonElement>(null);
   const titleId = useId();
@@ -32,7 +33,7 @@ function NewChat({ onPick }: { onPick(chatId: string): void }) {
     };
     document.addEventListener('mousedown', onDown);
     return () => document.removeEventListener('mousedown', onDown);
-  }, [open]);
+  }, [open, setOpen]);
 
   const close = () => {
     setOpen(false);
@@ -54,7 +55,7 @@ function NewChat({ onPick }: { onPick(chatId: string): void }) {
         aria-label="New chat"
         aria-haspopup="dialog"
         aria-expanded={open}
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => setOpen(!open)}
       >
         <Icon name="compose" filled size={24} />
       </button>
@@ -127,6 +128,8 @@ function AddFriendsButton({ onChat }: { onChat(chatId: string): void }) {
 /** Desktop left column: header (me, logo, add friends + compose), search pill and the chat list. */
 export function Sidebar() {
   const { chats, people, selectedChatId, selectChat, openSnap, self, openAccount } = useApp();
+  const { openAdd } = useFriends();
+  const [composing, setComposing] = useState(false);
   const me: Person = self ? { id: self.id, name: self.name, seed: self.avatar, color: SELF.color } : SELF;
   const [query, setQuery] = useState('');
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -171,7 +174,7 @@ export function Sidebar() {
         </span>
         <span className="sidebar__actions">
           <AddFriendsButton onChat={selectChat} />
-          <NewChat onPick={selectChat} />
+          <NewChat open={composing} setOpen={setComposing} onPick={selectChat} />
         </span>
       </header>
 
@@ -207,7 +210,9 @@ export function Sidebar() {
       </div>
 
       <nav className="sidebar__list" aria-label="Conversations">
-        {shown.length > 0 ? (
+        {chats.length === 0 ? (
+          <EmptyChats onAddFriends={openAdd} onNewChat={() => setComposing(true)} />
+        ) : shown.length > 0 ? (
           <ul aria-label="Chats">
             {shown.map((chat) => (
               <li key={chat.id}>
