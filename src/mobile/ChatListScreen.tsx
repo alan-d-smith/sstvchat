@@ -1,13 +1,60 @@
+import { useEffect, useId, useRef, useState } from 'react';
 import { Avatar } from '../components/Avatar';
 import { Icon } from '../components/Icon';
+import { RadioPill } from '../components/RadioPill';
+import { StartChat } from '../components/StartChat';
 import { useApp } from '../state/store';
 import { ME } from '../types';
 import type { Person } from '../types';
 import { MobileChatRow } from './MobileChatRow';
 import './ChatListScreen.css';
 
-/** The user's own avatar (profile button and the "My AI" chip). */
+/** The user's own avatar before a name is claimed (profile button and the "My AI" chip). */
 const SELF: Person = { id: ME, name: 'Me', seed: 7, color: 'var(--blue)' };
+
+/** Bottom sheet from the yellow add-friend button: add someone by username or pick a known person. */
+function AddFriendSheet({ onClose }: { onClose(): void }) {
+  const { setOverlay } = useApp();
+  const titleId = useId();
+  const sheet = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    sheet.current?.querySelector('input')?.focus();
+  }, []);
+
+  return (
+    <div
+      className="m-sheet"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div
+        ref={sheet}
+        className="m-sheet__panel"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') onClose();
+        }}
+      >
+        <div className="m-sheet__head">
+          <h2 className="m-sheet__title" id={titleId}>Add a friend</h2>
+          <button type="button" className="m-round" aria-label="Close" onClick={onClose}>
+            <Icon name="close" size={20} />
+          </button>
+        </div>
+        <StartChat
+          onPick={(chatId) => {
+            onClose();
+            setOverlay({ type: 'conversation', chatId });
+          }}
+        />
+      </div>
+    </div>
+  );
+}
 
 const CHIPS = ['Flashbacks', 'Groups', 'Near me', 'Best Friends'];
 const FLASHBACKS = 4;
@@ -15,21 +62,31 @@ const FRIEND_REQUESTS = 5;
 
 /** Mobile Chat tab: top bar, filter chips, chat rows and the compose button. */
 export function ChatListScreen() {
-  const { chats } = useApp();
+  const { chats, self, openAccount } = useApp();
+  const [adding, setAdding] = useState(false);
+  const me: Person = self ? { id: self.id, name: self.name, seed: self.avatar, color: SELF.color } : SELF;
   return (
     <section className="m-chats" aria-labelledby="m-chats-title">
       <header className="m-chats__top">
         <div className="m-chats__group">
-          <button type="button" className="m-round m-round--avatar" aria-label="My profile">
+          <button
+            type="button"
+            className="m-round m-round--avatar"
+            aria-label={self ? `My profile: ${self.name}` : 'My profile'}
+            onClick={openAccount}
+          >
             <span aria-hidden="true">
-              <Avatar people={[SELF]} size={40} />
+              <Avatar people={[me]} size={40} />
             </span>
           </button>
           <button type="button" className="m-round" aria-label="Search">
             <Icon name="search" size={26} />
           </button>
         </div>
-        <h1 className="m-chats__title" id="m-chats-title">Chat</h1>
+        <div className="m-chats__center">
+          <h1 className="m-chats__title" id="m-chats-title">Chat</h1>
+          <RadioPill compact />
+        </div>
         <div className="m-chats__group m-chats__group--end">
           <button type="button" className="m-round" aria-label="Notifications">
             <Icon name="bell" size={26} />
@@ -38,6 +95,8 @@ export function ChatListScreen() {
             type="button"
             className="m-round m-round--yellow"
             aria-label={`Add friends, ${FRIEND_REQUESTS} requests`}
+            aria-haspopup="dialog"
+            onClick={() => setAdding(true)}
           >
             <Icon name="add-friend" size={24} />
             <span className="m-round__badge" aria-hidden="true">{FRIEND_REQUESTS}</span>
@@ -52,7 +111,7 @@ export function ChatListScreen() {
         <div className="m-chips" role="group" aria-label="Filters">
           <button type="button" className="m-chip">
             <span aria-hidden="true">
-              <Avatar people={[SELF]} size={20} />
+              <Avatar people={[me]} size={20} />
             </span>
             <span>My AI</span>
           </button>
@@ -74,6 +133,8 @@ export function ChatListScreen() {
       <button type="button" className="m-fab" aria-label="New chat">
         <Icon name="compose" size={34} />
       </button>
+
+      {adding && <AddFriendSheet onClose={() => setAdding(false)} />}
     </section>
   );
 }

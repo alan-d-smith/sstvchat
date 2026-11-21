@@ -6,29 +6,23 @@ import type { Chat, Person } from '../types';
 import { Avatar } from '../components/Avatar';
 import { Icon } from '../components/Icon';
 import { Logo } from '../components/Logo';
+import { RadioPill } from '../components/RadioPill';
+import { StartChat } from '../components/StartChat';
 import { ChatRow } from './ChatRow';
 import './Sidebar.css';
 
-/** The local user. Mock people stop short of seed 16, so it is free for "me". */
+/** The local user before a name is claimed. Mock people stop short of seed 16, so it is free for "me". */
 const SELF: Person = { id: ME, name: 'Me', seed: 16, color: '#F23C57' };
 
-/** Best chat to open for a friend: the 1:1 chat, else the first group they are in. */
-function chatFor(personId: string, chats: Chat[]): Chat | undefined {
-  return chats.find((c) => !c.isGroup && c.memberIds.includes(personId))
-    ?? chats.find((c) => c.memberIds.includes(personId));
-}
-
 function NewChat({ onPick }: { onPick(chatId: string): void }) {
-  const { people, chats } = useApp();
   const [open, setOpen] = useState(false);
   const wrap = useRef<HTMLDivElement>(null);
   const button = useRef<HTMLButtonElement>(null);
-  const list = useRef<HTMLUListElement>(null);
   const titleId = useId();
 
   useEffect(() => {
     if (!open) return;
-    list.current?.querySelector('button')?.focus();
+    wrap.current?.querySelector<HTMLElement>('.new-chat__popover input')?.focus();
     const onDown = (e: MouseEvent) => {
       if (!wrap.current?.contains(e.target as Node)) setOpen(false);
     };
@@ -63,28 +57,12 @@ function NewChat({ onPick }: { onPick(chatId: string): void }) {
       {open && (
         <div className="new-chat__popover" role="dialog" aria-labelledby={titleId} onKeyDown={onKeyDown}>
           <h2 className="new-chat__title" id={titleId}>New Chat</h2>
-          <ul className="new-chat__list" ref={list}>
-            {Object.values(people).map((p) => {
-              const target = chatFor(p.id, chats);
-              return (
-                <li key={p.id}>
-                  <button
-                    type="button"
-                    className="new-chat__person"
-                    disabled={!target}
-                    onClick={() => {
-                      if (!target) return;
-                      onPick(target.id);
-                      close();
-                    }}
-                  >
-                    <span aria-hidden="true"><Avatar people={[p]} size={32} /></span>
-                    <span className="new-chat__name">{p.name}</span>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
+          <StartChat
+            onPick={(chatId) => {
+              onPick(chatId);
+              close();
+            }}
+          />
         </div>
       )}
     </div>
@@ -93,7 +71,8 @@ function NewChat({ onPick }: { onPick(chatId: string): void }) {
 
 /** Desktop left column: header (me, logo, compose), search pill and the chat list. */
 export function Sidebar() {
-  const { chats, people, selectedChatId, selectChat, openSnap } = useApp();
+  const { chats, people, selectedChatId, selectChat, openSnap, self, openAccount } = useApp();
+  const me: Person = self ? { id: self.id, name: self.name, seed: self.avatar, color: SELF.color } : SELF;
   const [query, setQuery] = useState('');
   const q = query.trim().toLowerCase();
   const shown = q ? chats.filter((c) => c.title.toLowerCase().includes(q)) : chats;
@@ -106,14 +85,23 @@ export function Sidebar() {
   return (
     <aside className="sidebar">
       <header className="sidebar__header">
-        <span className="sidebar__me">
-          <Avatar people={[SELF]} size={36} />
+        <button
+          type="button"
+          className="sidebar__me"
+          aria-label={self ? `Your account: ${self.name}` : 'Your account'}
+          title={self?.name}
+          onClick={openAccount}
+        >
+          <span aria-hidden="true"><Avatar people={[me]} size={36} /></span>
           <span className="sidebar__gear" aria-hidden="true">
             <Icon name="gear" filled size={12} />
           </span>
-        </span>
-        <span className="sidebar__logo">
-          <Logo size={32} />
+        </button>
+        <span className="sidebar__brand">
+          <span className="sidebar__logo">
+            <Logo size={32} />
+          </span>
+          <RadioPill />
         </span>
         <NewChat onPick={selectChat} />
       </header>

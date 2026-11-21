@@ -28,6 +28,20 @@
   justify-content: flex-end;
 }
 
+/* Title with the radio pill under it; the pill keeps its own width so the side groups still fit. */
+.m-chats__center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+
+.m-chats__center .radio-pill {
+  height: 18px;
+  padding: 0 7px 0 6px;
+  font-size: 11px;
+}
+
 .m-chats__title {
   margin: 0;
   font-size: 20px;
@@ -237,6 +251,43 @@
   font-size: 13.5px;
   font-weight: 600;
   cursor: pointer;
+}
+
+/* ---------- add-a-friend sheet ---------- */
+
+.m-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  /* Scrim: black in both themes. */
+  background: rgb(0 0 0 / 0.45);
+}
+
+.m-sheet__panel {
+  display: flex;
+  flex-direction: column;
+  max-height: min(80dvh, 640px);
+  padding: 8px 0 env(safe-area-inset-bottom);
+  border-radius: 16px 16px 0 0;
+  background: var(--bg-elev);
+  color: var(--text);
+}
+
+.m-sheet__head {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 12px 8px 16px;
+}
+
+.m-sheet__title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
 }
 
 /* ---------- compose FAB, 15px above the nav ---------- */
