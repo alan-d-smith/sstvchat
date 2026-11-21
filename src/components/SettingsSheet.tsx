@@ -111,6 +111,7 @@ function MicLevel() {
  */
 export function SettingsSheet({ onClose }: { onClose(): void }) {
   const { mics, cameras, locked, unlock } = useMediaDevices();
+  const { toggleRadioDetails } = useApp();
   const [unlocking, setUnlocking] = useState(false);
   const titleId = useId();
   const panel = useRef<HTMLDivElement>(null);
@@ -171,6 +172,16 @@ export function SettingsSheet({ onClose }: { onClose(): void }) {
           <DevicePicker kind="mic" devices={mics} locked={locked.mic} />
           <MicLevel />
           <p className="settings__tip">{MIC_TIP}</p>
+          <button
+            type="button"
+            className="settings__details"
+            onClick={() => {
+              onClose();
+              toggleRadioDetails(true);
+            }}
+          >
+            Open radio details
+          </button>
 
           <DevicePicker kind="camera" devices={cameras} locked={locked.camera} />
         </div>

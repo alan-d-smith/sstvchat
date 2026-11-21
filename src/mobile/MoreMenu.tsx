@@ -6,11 +6,12 @@ import './MoreMenu.css';
  * The chat list's "⋯" action sheet: a card of actions above a separate Done button, over a dim
  * screen. Closes on Done, a tap on the dimmed area or Esc; each action closes it too.
  */
-export function MoreMenu({ onClose, onNewChat, onNewGroup, onSettings }: {
+export function MoreMenu({ onClose, onNewChat, onNewGroup, onSettings, onRadioDetails }: {
   onClose(): void;
   onNewChat(): void;
   onNewGroup(): void;
   onSettings(): void;
+  onRadioDetails?(): void;
 }) {
   const sheet = useRef<HTMLDivElement>(null);
   const close = useRef(onClose);
@@ -45,6 +46,7 @@ export function MoreMenu({ onClose, onNewChat, onNewGroup, onSettings }: {
           {item('New Chat', onNewChat)}
           {item('New Group Chat', onNewGroup)}
           {item('Settings', onSettings)}
+          {onRadioDetails && item('Radio details', onRadioDetails)}
         </div>
         <button type="button" className="m-action__done" onClick={onClose}>Done</button>
       </div>

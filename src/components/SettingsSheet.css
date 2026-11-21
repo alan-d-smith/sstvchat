@@ -290,3 +290,22 @@
     transition: none;
   }
 }
+
+.settings__details {
+  align-self: flex-start;
+  margin: 2px 0 10px;
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: none;
+  color: var(--blue);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.settings__details:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}

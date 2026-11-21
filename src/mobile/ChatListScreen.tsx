@@ -68,7 +68,7 @@ export function NewChatSheet({ onClose, group = false }: { onClose(): void; grou
 
 /** Mobile Chat tab: top bar, filter chips, chat rows and the compose button. */
 export function ChatListScreen() {
-  const { chats, self, openAccount } = useApp();
+  const { chats, self, openAccount, toggleRadioDetails } = useApp();
   const { incoming, openAdd, openNotices, unread } = useFriends();
   const [composing, setComposing] = useState(false);
   const [groupsOnly, setGroupsOnly] = useState(false);
@@ -186,6 +186,10 @@ export function ChatListScreen() {
             setMenuOpen(false);
             setComposeGroup(true);
             setComposing(true);
+          }}
+          onRadioDetails={() => {
+            setMenuOpen(false);
+            toggleRadioDetails(true);
           }}
           onSettings={() => {
             setMenuOpen(false);
