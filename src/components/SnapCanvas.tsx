@@ -13,22 +13,26 @@ function blackFrame(): ImageData {
   return img;
 }
 
+const FINISHED = / · (received|stopped)$/;
+
 /**
  * Portrait 240×320 snap painted live from the transport: each `rx:row` for `handle` is one
  * landscape SSTV line, rotated back into portrait column `index`, so the picture fills left to
  * right. A bright scan line marks the paint front until the receive ends or is stopped.
  *
- * Only rows emitted after mount are painted; a receive resumed part-way (startAt) shows black
- * to the left of the first row that arrives.
+ * It starts from the store's buffer for the handle, so a snap opened mid-receive shows the rows
+ * that already arrived, and a saved snap shows at once.
  */
 export function SnapCanvas({ handle }: { handle: Handle }) {
-  const { transport } = useApp();
+  const { transport, snapBuffer, rxLabel } = useApp();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [front, setFront] = useState(0);
   const [ended, setEnded] = useState(false);
+  const finished = FINISHED.test(rxLabel[handle] ?? '');
 
   useEffect(() => {
-    const buffer = blackFrame();
+    const shared = snapBuffer(handle);
+    const buffer = shared ? new ImageData(new Uint8ClampedArray(shared.data), W, H) : blackFrame();
     const ctx = canvasRef.current?.getContext('2d') ?? null;
     ctx?.putImageData(buffer, 0, 0);
     setFront(0);
@@ -58,12 +62,12 @@ export function SnapCanvas({ handle }: { handle: Handle }) {
       offs.forEach((off) => off());
       if (frame) cancelAnimationFrame(frame);
     };
-  }, [transport, handle]);
+  }, [transport, handle, snapBuffer]);
 
   return (
     <div className="snap-canvas">
       <canvas ref={canvasRef} className="snap-canvas__img" width={W} height={H} aria-label="Snap" role="img" />
-      {!ended && <div className="snap-canvas__scan" style={{ left: `${(front / W) * 100}%` }} />}
+      {!ended && !finished && <div className="snap-canvas__scan" style={{ left: `${(front / W) * 100}%` }} />}
     </div>
   );
 }

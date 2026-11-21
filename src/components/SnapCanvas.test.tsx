@@ -46,9 +46,11 @@ function setup(handle = 'rx-1') {
   return { ...utils, emit, scan };
 }
 
+let ctx: { putImageData: ReturnType<typeof vi.fn> };
+
 beforeEach(() => {
   vi.mocked(paintRow).mockClear();
-  const ctx = { putImageData: vi.fn() } as unknown as CanvasRenderingContext2D;
+  ctx = { putImageData: vi.fn() };
   vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(ctx as never);
 });
 
@@ -94,6 +96,18 @@ describe('SnapCanvas', () => {
     expect(scan()).not.toBeNull();
     emit('rx:done', 'rx-1');
     expect(scan()).toBeNull();
+  });
+
+  it('starts from the rows that arrived before it was opened (no black left side)', () => {
+    const { transport, emit } = fakeTransport();
+    const { rerender } = render(<AppProvider transport={transport}><div /></AppProvider>);
+    emit('rx:start', 'rx-1', 'julie', 'snap', 'Robot36', { chatId: 'julie' });
+    emit('rx:row', 'rx-1', 0, row(9));
+    rerender(<AppProvider transport={transport}><SnapCanvas handle="rx-1" /></AppProvider>);
+    const first = ctx.putImageData.mock.calls[0][0] as ImageData;
+    // Portrait column 0 (landscape row 0) is already painted; column 1 is still black.
+    expect(Array.from(first.data.slice(0, 4))).toEqual([9, 9, 9, 9]);
+    expect(Array.from(first.data.slice(4, 8))).toEqual([0, 0, 0, 255]);
   });
 
   it('hides the scan line when its receive is cancelled', () => {

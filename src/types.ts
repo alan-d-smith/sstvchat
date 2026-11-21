@@ -8,5 +8,5 @@ export type Message =
   | { id: string; senderId: string; type: 'text'; text: string; state?: 'sending' | 'receiving' }
   | { id: string; senderId: string; type: 'emoji' | 'sticker'; text: string }
   | { id: string; senderId: string; type: 'quote'; quoted: { senderId: string; text: string; time: string }; text: string }
-  | { id: string; senderId: string; type: 'snap'; opened: boolean };
+  | { id: string; senderId: string; type: 'snap'; opened: boolean; imageId?: string };
 export interface Chat { id: string; title: string; isGroup: boolean; memberIds: string[]; status: ChatStatus; messages: Message[]; hasIncomingSnap?: boolean; watch?: boolean }

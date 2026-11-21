@@ -36,6 +36,17 @@ function fakeApi(over: Partial<AppApi> = {}): AppApi {
     cancel: vi.fn(),
     demoIncoming: vi.fn(),
     resetDemo: vi.fn(),
+    self: null,
+    claim: vi.fn(),
+    setAvatar: vi.fn(),
+    accountOpen: false,
+    openAccount: vi.fn(),
+    closeAccount: vi.fn(),
+    radio: 'off',
+    enableRadio: vi.fn(),
+    startChat: vi.fn((name: string) => name),
+    refreshPeople: vi.fn(),
+    snapBuffer: vi.fn(),
     ...over,
   };
 }

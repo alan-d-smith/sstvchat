@@ -1,9 +1,20 @@
 import '@testing-library/jest-dom/vitest';
-import { afterEach } from 'vitest';
+import { afterEach, beforeEach, vi } from 'vitest';
 import { cleanup } from '@testing-library/react';
 
-// globals: false disables RTL auto-cleanup, so unmount between tests here.
-afterEach(() => cleanup());
+// No network in tests: the store asks /api/users on mount. Tests that need it mock fetch themselves.
+beforeEach(() => {
+  vi.stubGlobal('fetch', vi.fn(async () => { throw new TypeError('network disabled in tests'); }));
+});
+
+// globals: false disables RTL auto-cleanup, so unmount between tests here. The store persists
+// chats (localStorage) and the username (cookie), so wipe both too.
+afterEach(() => {
+  vi.unstubAllGlobals();
+  cleanup();
+  localStorage.clear();
+  document.cookie = 'sstv_user=; path=/; max-age=0';
+});
 
 // jsdom lacks ImageData.
 if (typeof globalThis.ImageData === 'undefined') {
