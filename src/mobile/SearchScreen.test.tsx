@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { chats, people } from '../data/mock';
+import { fixtureChats as chats, fixturePeople as people } from '../test/fixtures';
 import type { AppApi } from '../state/store';
 import type { FriendsApi } from '../state/friendsContext';
 
