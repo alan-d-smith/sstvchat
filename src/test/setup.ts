@@ -1,4 +1,9 @@
 import '@testing-library/jest-dom/vitest';
+import { afterEach } from 'vitest';
+import { cleanup } from '@testing-library/react';
+
+// globals: false disables RTL auto-cleanup, so unmount between tests here.
+afterEach(() => cleanup());
 
 // jsdom lacks ImageData.
 if (typeof globalThis.ImageData === 'undefined') {
