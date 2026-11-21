@@ -119,12 +119,12 @@ Three regions, white page background (`#FFFFFF`).
 
 ### Status semantics (shared by desktop and mobile)
 
-Colours: **chat = blue `#0FADFF`**, **snap = purple `#A05DCD`** (also allowed: red
+Colours: **chat = blue `#0FADFF`**, **snap = red `#F23C57`** (snaps are images only; user decision —
 `#F23C57` for a snap variant), **live/receiving = green `#00C67F`**.
 
 | Status            | Icon                        | Text colour |
 |-------------------|-----------------------------|-------------|
-| New Snap          | filled square               | purple      |
+| New Snap          | filled square               | red         |
 | New Chat          | filled chat bubble          | blue        |
 | Delivered         | filled arrow                | grey text, icon in type colour |
 | Opened            | outline arrow               | grey text, icon in type colour |
@@ -151,7 +151,7 @@ Colours: **chat = blue `#0FADFF`**, **snap = purple `#A05DCD`** (also allowed: r
     sender label, a timestamp right-aligned (`4:37PM`, ~11 px grey), and the quoted
     text with its own sender bar; the reply text follows below.
   - Sticker message: large emoji/sticker (original art or emoji, ~48 px).
-  - **Snap message in chat**: a tile showing "📷 Snap" style row (purple) that, when
+  - **Snap message in chat**: a tile showing "📷 Snap" style row (red) that, when
     clicked, opens the right pane in snap-viewer mode.
   - **Outgoing text sending state**: a just-sent message shows a small grey
     "Sending…" label under it for ~1–2 s (simulated two-tone transmit), then clears.
