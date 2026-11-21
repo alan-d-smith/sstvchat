@@ -158,3 +158,6 @@ vite.config.ts.timestamp-*
 
 # Reference screenshots (third-party art, private names) - keep local only
 docs/reference/
+
+# Claude Code agent worktrees
+.claude/worktrees/
