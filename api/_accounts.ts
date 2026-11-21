@@ -13,6 +13,8 @@ export interface AccountStore {
   setNx(key: string, value: unknown): Promise<boolean>;
   get(key: string): Promise<unknown>;
   set(key: string, value: unknown): Promise<void>;
+  /** DEL key. */
+  del(key: string): Promise<void>;
   incr(key: string): Promise<number>;
   expire(key: string, seconds: number): Promise<void>;
   /** Every key matching `user:*` (SCAN). */
@@ -44,6 +46,21 @@ export function asRecord(v: unknown): UserRecord | null {
   const { token, pw } = v as Record<string, unknown>;
   return typeof token === 'string' ? { token, pw: typeof pw === 'string' ? pw : null } : null;
 }
+
+/** A trimmed, lower-cased username (not yet validated). */
+export const normalName = (v: unknown) => (typeof v === 'string' ? v.trim().toLowerCase() : '');
+export const fail = (status: number, error: string): Result => ({ status, body: { error } });
+
+/** Valid `name` + `token` pair from a request (not yet checked against the store), or the 401 to answer with. */
+export function credentials(input: Record<string, unknown>): { name: string; token: string } | Result {
+  const name = normalName(input.name);
+  const { token } = input;
+  if (!NAME_RE.test(name) || typeof token !== 'string' || !token) return fail(401, 'unauthorized');
+  return { name, token };
+}
+
+/** The stored `user:<name>` record is held by `token`. */
+export const owns = (record: unknown, token: string) => asRecord(record)?.token === token;
 
 /**
  * POST /api/claim { name, token, password?, avatar? }
@@ -113,6 +130,9 @@ export function memoryStore(now: () => number = Date.now): AccountStore {
     get: async (key) => live(key)?.value ?? null,
     set: async (key, value) => {
       db.set(key, { value, expires: Infinity });
+    },
+    del: async (key) => {
+      db.delete(key);
     },
     incr: async (key) => {
       const e = live(key);

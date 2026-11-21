@@ -6,9 +6,10 @@ import react from '@vitejs/plugin-react';
 import { claim, memoryStore, users } from './api/_accounts.js';
 import type { Result } from './api/_accounts.js';
 import { friendAction, friendLists } from './api/_friends.js';
+import { groupAction, myGroups } from './api/_groups.js';
 import { scryptPasswords } from './api/_password.js';
 
-/** `vite` dev server only: /api/claim, /api/users and /api/friends from memory, with the same rules as api/*.ts. */
+/** `vite` dev server only: /api/claim, /api/users, /api/friends and /api/groups from memory, with the same rules as api/*.ts. */
 function devAccounts(): Plugin {
   const store = memoryStore();
   return {
@@ -43,6 +44,12 @@ function devAccounts(): Plugin {
         } else if (path === '/api/friends' && req.method === 'POST') {
           const r = await readJson();
           if (r.ok) send(await friendAction(store, r.body));
+        } else if (path === '/api/groups' && req.method === 'GET') {
+          const q = new URLSearchParams(req.url?.split('?')[1] ?? '');
+          send(await myGroups(store, { name: q.get('name'), token: q.get('token') }));
+        } else if (path === '/api/groups' && req.method === 'POST') {
+          const r = await readJson();
+          if (r.ok) send(await groupAction(store, r.body));
         } else {
           next();
         }

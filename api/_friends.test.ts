@@ -50,7 +50,7 @@ describe('GET /api/friends', () => {
 
   it('starts empty, then lists entries with avatars sorted by name', async () => {
     const { act, lists } = await setup('alan', 'bea', 'cy');
-    expect(await lists('alan')).toEqual({ incoming: [], outgoing: [], friends: [] });
+    expect(await lists('alan')).toEqual({ incoming: [], outgoing: [], friends: [], groups: [] });
     await act('cy', 'request', 'alan');
     await act('bea', 'request', 'alan');
     expect((await lists('alan')).incoming).toEqual([{ name: 'bea', avatar: 2 }, { name: 'cy', avatar: 3 }]);

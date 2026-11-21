@@ -41,6 +41,9 @@ export function redisStore(): AccountStore {
     set: async (key, value) => {
       await redis.set(key, value);
     },
+    del: async (key) => {
+      await redis.del(key);
+    },
     incr: (key) => redis.incr(key),
     expire: async (key, seconds) => {
       await redis.expire(key, seconds);

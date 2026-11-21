@@ -5,8 +5,10 @@
 //   sent:<name>     who <name> asked (outgoing, pending)
 //   friends:<name>  accepted friends (kept symmetric)
 
-import { NAME_RE, asRecord, isSeed } from './_accounts.js';
+import { NAME_RE, asRecord, credentials, fail, isSeed, normalName as normal, owns } from './_accounts.js';
 import type { AccountStore, Result } from './_accounts.js';
+import { groupsFor } from './_groups.js';
+import type { Group } from './_groups.js';
 
 export interface FriendEntry { name: string; avatar: number | null }
 export interface FriendLists { incoming: FriendEntry[]; outgoing: FriendEntry[]; friends: FriendEntry[] }
@@ -16,45 +18,40 @@ export type FriendState = 'none' | 'requested' | 'friends';
 
 const ACTIONS: readonly FriendAction[] = ['request', 'accept', 'decline', 'remove'];
 
-const normal = (v: unknown) => (typeof v === 'string' ? v.trim().toLowerCase() : '');
-const fail = (status: number, error: string): Result => ({ status, body: { error } });
-
-/** Valid `name` + `token` pair, or the error to answer with. */
-function credentials(input: Record<string, unknown>): { name: string; token: string } | Result {
-  const name = normal(input.name);
-  const { token } = input;
-  if (!NAME_RE.test(name) || typeof token !== 'string' || !token) return fail(401, 'unauthorized');
-  return { name, token };
-}
-
-const owns = (record: unknown, token: string) => asRecord(record)?.token === token;
+/** GET /api/friends answers the friend lists and, so one poll covers both, the caller's group chats. */
+export interface FriendsPoll extends FriendLists { groups: Group[] }
 
 /**
- * GET /api/friends?name=&token= → { incoming, outgoing, friends }, each [{ name, avatar }] sorted
- * by name. 401 unless `token` is the one stored in `user:<name>`. Two store round trips: the user
- * record and the three sets together, then the avatars.
+ * GET /api/friends?name=&token= → { incoming, outgoing, friends, groups }: the first three
+ * [{ name, avatar }] sorted by name, `groups` the caller's group chats (see _groups.ts). 401 unless
+ * `token` is the one stored in `user:<name>`. Two store round trips: the user record and the four
+ * sets together, then the avatars and the group records.
  */
 export async function friendLists(store: AccountStore, input: Record<string, unknown>): Promise<Result> {
   const who = credentials(input);
   if ('status' in who) return who;
   const { name, token } = who;
-  const [record, incoming, outgoing, friends] = await Promise.all([
+  const [record, incoming, outgoing, friends, groupIds] = await Promise.all([
     store.get(`user:${name}`),
     store.smembers(`req:${name}`),
     store.smembers(`sent:${name}`),
     store.smembers(`friends:${name}`),
+    store.smembers(`groups:${name}`),
   ]);
   if (!owns(record, token)) return fail(401, 'unauthorized');
 
   const all = [...new Set([...incoming, ...outgoing, ...friends])];
-  const seeds = all.length ? await store.mget(all.map((n) => `avatar:${n}`)) : [];
+  const [seeds, groups] = await Promise.all([
+    all.length ? store.mget(all.map((n) => `avatar:${n}`)) : Promise.resolve([]),
+    groupsFor(store, name, groupIds),
+  ]);
   const avatars = new Map(all.map((n, i) => {
     const seed = Number(seeds[i]);
     return [n, seeds[i] != null && isSeed(seed) ? seed : null] as const;
   }));
   const entries = (names: string[]): FriendEntry[] =>
     [...names].sort().map((n) => ({ name: n, avatar: avatars.get(n) ?? null }));
-  const body: FriendLists = { incoming: entries(incoming), outgoing: entries(outgoing), friends: entries(friends) };
+  const body: FriendsPoll = { incoming: entries(incoming), outgoing: entries(outgoing), friends: entries(friends), groups };
   return { status: 200, body };
 }
 
