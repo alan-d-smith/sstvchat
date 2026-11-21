@@ -80,6 +80,11 @@
   border: 0;
 }
 
+/* The camera list, after the mic's meter and tip: a clear break between the two. */
+.settings__tip + .settings__group {
+  margin-top: 24px;
+}
+
 .settings__label {
   padding: 0 4px 8px;
   color: var(--text-2);
