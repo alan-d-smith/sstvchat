@@ -213,6 +213,258 @@
   outline-offset: 1px;
 }
 
+/* ---------- message actions: hold, right-click or Shift+F10 ---------- */
+
+/* Each message sits in one of these; it tints in the sender's colour while held. */
+.msg-hold {
+  margin: 0 -4px;
+  padding: 0 4px;
+  border-radius: 6px;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color 0.12s ease-out;
+}
+
+.msg-hold:focus {
+  outline: none;
+}
+
+.msg-hold:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: -1px;
+}
+
+/* Touch screens: a held message must not start a text selection or the iOS callout. */
+@media (hover: none) {
+  .msg-hold {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+}
+
+/* Fades in over the hold (after a beat, so a scroll that starts on a message does not flash it). */
+.msg-hold.is-pressing {
+  -webkit-user-select: none;
+  user-select: none;
+  background: color-mix(in srgb, var(--who) 14%, transparent);
+  transition: background-color 0.3s ease-in 0.15s;
+}
+
+.msg-hold.is-held {
+  background: color-mix(in srgb, var(--who) 16%, transparent);
+}
+
+.msg-glyph {
+  display: block;
+  flex: none;
+}
+
+/* Floating menu at the pointer (wider screens). */
+.msg-menu {
+  position: fixed;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  min-width: 168px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  background: var(--bg-elev);
+  color: var(--text);
+  font-family: var(--font);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.16), 0 1px 3px rgb(0 0 0 / 0.08);
+  animation: msg-menu-in 0.12s ease-out;
+}
+
+@keyframes msg-menu-in {
+  from { opacity: 0; transform: scale(0.96); }
+}
+
+.msg-menu__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 34px;
+  padding: 0 12px 0 10px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.msg-menu__item .msg-glyph {
+  width: 18px;
+  height: 18px;
+  color: var(--text-2);
+}
+
+.msg-menu__item:hover,
+.msg-menu__item:focus-visible {
+  outline: none;
+  background: color-mix(in srgb, var(--text) 8%, transparent);
+}
+
+.msg-menu__item.is-danger,
+.msg-menu__item.is-danger .msg-glyph {
+  color: var(--red);
+}
+
+.msg-menu__item.is-danger:hover,
+.msg-menu__item.is-danger:focus-visible {
+  background: color-mix(in srgb, var(--red) 12%, transparent);
+}
+
+/* Bottom action sheet (phones): the held message lifted over a scrim, actions below it. */
+.msg-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 16px 8px calc(8px + env(safe-area-inset-bottom));
+  /* Scrim: black in both themes, like the other sheets. */
+  background: rgb(0 0 0 / 0.45);
+  color: var(--text);
+  font-family: var(--font);
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+  animation: msg-sheet-fade 0.16s ease-out;
+}
+
+.msg-sheet > * {
+  width: 100%;
+  max-width: 480px;
+  margin-inline: auto;
+}
+
+.msg-sheet__lift {
+  max-height: 38dvh;
+  overflow: hidden;
+  padding: 10px 14px 12px;
+  border-radius: 14px;
+  background: var(--bg-elev);
+  box-shadow: 0 14px 36px rgb(0 0 0 / 0.3);
+  pointer-events: none;
+  animation: msg-sheet-lift 0.22s cubic-bezier(0.2, 0.9, 0.3, 1.15);
+}
+
+.msg-sheet__lift .msg__text,
+.msg-sheet__lift .quote__text {
+  font-size: 17px;
+  line-height: 22px;
+}
+
+.msg-sheet__lift .msg-label {
+  font-size: 12.5px;
+}
+
+.msg-sheet__panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  animation: msg-sheet-up 0.24s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.msg-sheet__group {
+  overflow: hidden;
+  border-radius: 14px;
+  background: var(--bg-elev);
+}
+
+.msg-sheet__item,
+.msg-sheet__cancel {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  min-height: 54px;
+  padding: 8px 18px;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 17px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.msg-sheet__item + .msg-sheet__item {
+  border-top: 0.5px solid var(--border);
+}
+
+.msg-sheet__item .msg-glyph {
+  width: 22px;
+  height: 22px;
+  color: var(--text-2);
+}
+
+.msg-sheet__item.is-danger,
+.msg-sheet__item.is-danger .msg-glyph {
+  color: var(--red);
+}
+
+.msg-sheet__label {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.msg-sheet__hint {
+  color: var(--text-2);
+  font-size: 12.5px;
+  font-weight: 400;
+  line-height: 16px;
+}
+
+.msg-sheet__cancel {
+  justify-content: center;
+  border-radius: 14px;
+  background: var(--bg-elev);
+  font-weight: 700;
+}
+
+.msg-sheet__item:active,
+.msg-sheet__item:focus-visible,
+.msg-sheet__cancel:active,
+.msg-sheet__cancel:focus-visible {
+  outline: none;
+  background-color: color-mix(in srgb, var(--text) 8%, var(--bg-elev));
+}
+
+@keyframes msg-sheet-fade {
+  from { background-color: rgb(0 0 0 / 0); }
+}
+
+@keyframes msg-sheet-lift {
+  from { opacity: 0; transform: translateY(10px) scale(0.97); }
+}
+
+@keyframes msg-sheet-up {
+  from { transform: translateY(100%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .msg-hold.is-pressing {
+    transition: none;
+  }
+
+  .msg-menu,
+  .msg-sheet,
+  .msg-sheet__lift,
+  .msg-sheet__panel {
+    animation: none;
+  }
+}
+
 /* ---------- presence chips ---------- */
 
 .presence {

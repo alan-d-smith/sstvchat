@@ -3,6 +3,7 @@ import { ME } from '../../types';
 import type { Chat, Message as Msg } from '../../types';
 import { useApp } from '../../state/store';
 import { Message, onBar, senderColor, senderLabel, whoStyle } from './Message';
+import { useMessageMenu } from './MessageMenu';
 import './thread.css';
 
 /** Runs of consecutive items that share a key. */
@@ -22,11 +23,16 @@ const STICK_SLACK = 32;
 /**
  * Group-style thread: one uppercase label per run of messages from the same sender, then a
  * colour bar spanning that sender's text / emoji / quote / snap lines. Scrolls on its own and
- * stays pinned to the bottom while the reader is there (or when I send something).
+ * stays pinned to the bottom while the reader is there (or when I send something). Holding,
+ * right-clicking or Shift+F10 on a message opens Copy / Delete (delete is local only).
  */
 export function MessageList({ chat }: { chat: Chat }) {
-  const { people, openSnap } = useApp();
+  const { people, openSnap, deleteMessage } = useApp();
   const ref = useRef<HTMLDivElement>(null);
+  const actions = useMessageMenu({
+    scope: chat.id, messages: chat.messages, people, threadRef: ref,
+    onDelete: (id) => deleteMessage(chat.id, id),
+  });
   const stick = useRef(true);
   const seen = useRef({ chatId: chat.id, count: chat.messages.length });
 
@@ -45,6 +51,7 @@ export function MessageList({ chat }: { chat: Chat }) {
   }, [chat.id, chat.messages]);
 
   const onScroll = () => {
+    actions.cancelPress(); // a finger that scrolls the thread is not holding a message
     const el = ref.current;
     if (el) stick.current = el.scrollHeight - el.scrollTop - el.clientHeight <= STICK_SLACK;
   };
@@ -56,15 +63,15 @@ export function MessageList({ chat }: { chat: Chat }) {
     if (m.type === 'snap' && m.senderId !== ME && !m.opened) liveSnapId = m.id;
   }
 
-  const render = (m: Msg) => (
-    <Message
-      key={m.id}
-      message={m}
-      people={people}
-      onOpenSnap={() => openSnap(chat.id)}
-      snapProgress={m.id === liveSnapId ? receivingSnap : undefined}
-    />
-  );
+  const render = (m: Msg) => {
+    const snapProgress = m.id === liveSnapId ? receivingSnap : undefined;
+    const busy = (m.type === 'text' && !!m.state) || snapProgress !== undefined;
+    return (
+      <div key={m.id} {...actions.holdProps(m, busy)}>
+        <Message message={m} people={people} onOpenSnap={() => openSnap(chat.id)} snapProgress={snapProgress} />
+      </div>
+    );
+  };
 
   return (
     <div className="thread" ref={ref} onScroll={onScroll} role="log" aria-label="Messages" tabIndex={0}>
@@ -85,6 +92,7 @@ export function MessageList({ chat }: { chat: Chat }) {
           </div>
         );
       })}
+      {actions.menu}
     </div>
   );
 }
