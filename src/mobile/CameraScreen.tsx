@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Avatar } from '../components/Avatar';
 import { Icon } from '../components/Icon';
@@ -11,13 +11,22 @@ import './CameraScreen.css';
 /** Own profile, for when the people map has no entry for ME (same seed as the chat list). */
 const SELF: Person = { id: ME, name: 'Me', seed: 7, color: 'var(--blue)' };
 
-const ZOOMS = ['.5', '1x', '2.5'] as const;
+/** Zoom stops; the selected one gets an "x" suffix (`.5  1x  2.5`). */
+const ZOOMS = ['.5', '1', '2.5'] as const;
 const TABS = ['Favourites', 'Create with AI', 'Aesthetic', 'Funny', 'Cute', 'Retro', 'Party'];
 
 interface Lens {
   name: string;
   bg: string;
   art: ReactNode;
+}
+
+/** Horizontal band of a disc (centre cx,cy, radius r) between y1 and y2, as an SVG path. */
+function discBand(cx: number, cy: number, r: number, y1: number, y2: number) {
+  const half = (y: number) => Math.sqrt(Math.max(0, r * r - (y - cy) ** 2));
+  const [a, b] = [half(y1), half(y2)];
+  const n = (v: number) => +v.toFixed(2);
+  return `M${n(cx - a)} ${y1}H${n(cx + a)}A${r} ${r} 0 0 1 ${n(cx + b)} ${y2}H${n(cx - b)}A${r} ${r} 0 0 1 ${n(cx - a)} ${y1}z`;
 }
 
 /** Original placeholder lens thumbnails: CSS gradients with simple shapes on a 50×50 grid. */
@@ -95,11 +104,10 @@ const LENSES: Lens[] = [
     bg: 'linear-gradient(180deg, #2b1055 0%, #8a2a7a 50%, #ff8a5b 100%)',
     art: (
       <>
-        <circle cx="25" cy="25" r="10" fill="#ffd36b" />
-        <g fill="#8a2a7a">
-          <rect x="13" y="25" width="24" height="1.6" />
-          <rect x="13" y="28.5" width="24" height="2" />
-          <rect x="13" y="32" width="24" height="2.6" />
+        <g fill="#ffd36b">
+          {[[15, 25], [26.4, 28.6], [30, 31.8], [33.2, 35]].map(([y1, y2]) => (
+            <path key={y1} d={discBand(25, 25, 10, y1, y2)} />
+          ))}
         </g>
         <path d="M0 36h50v14H0z" fill="#2b1055" />
         <path d="M25 36 8 50M25 36l17 14M25 36v14M0 41h50M0 46h50" stroke="#ff5ec4" strokeWidth="1" />
@@ -118,7 +126,9 @@ function ToolButton({ icon, label, className = '' }: { icon: IconName; label: st
 
 /** Centre `el` horizontally inside its scrolling parent. */
 function centreInScroller(scroller: HTMLElement, el: HTMLElement, smooth: boolean) {
-  const left = el.offsetLeft + el.offsetWidth / 2 - scroller.clientWidth / 2;
+  const box = el.getBoundingClientRect();
+  const frame = scroller.getBoundingClientRect();
+  const left = scroller.scrollLeft + box.left - frame.left + box.width / 2 - scroller.clientWidth / 2;
   if (smooth && typeof scroller.scrollTo === 'function') scroller.scrollTo({ left, behavior: 'smooth' });
   else scroller.scrollLeft = left;
 }
@@ -132,17 +142,32 @@ function centreInScroller(scroller: HTMLElement, el: HTMLElement, smooth: boolea
 export function CameraScreen() {
   const { people, takeSnap } = useApp();
   const me = people[ME] ?? SELF;
-  const [zoom, setZoom] = useState<(typeof ZOOMS)[number]>('1x');
+  const [zoom, setZoom] = useState<(typeof ZOOMS)[number]>('1');
   const [tab, setTab] = useState('Create with AI');
   const tabsRef = useRef<HTMLDivElement>(null);
   const firstPaint = useRef(true);
 
-  useLayoutEffect(() => {
+  // Keep the selected category centred under the shutter: on change (animated), and whenever the
+  // strip or a tab is resized (instantly) — e.g. when the web font arrives or the phone rotates.
+  const centreTab = useCallback((smooth: boolean) => {
     const scroller = tabsRef.current;
     const el = scroller?.querySelector<HTMLElement>('[aria-selected="true"]');
-    if (scroller && el) centreInScroller(scroller, el, !firstPaint.current);
+    if (scroller && el) centreInScroller(scroller, el, smooth);
+  }, []);
+
+  useLayoutEffect(() => {
+    centreTab(!firstPaint.current);
     firstPaint.current = false;
-  }, [tab]);
+  }, [tab, centreTab]);
+
+  useEffect(() => {
+    const scroller = tabsRef.current;
+    if (!scroller || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(() => centreTab(false));
+    ro.observe(scroller);
+    scroller.querySelectorAll('[role="tab"]').forEach((t) => ro.observe(t));
+    return () => ro.disconnect();
+  }, [centreTab]);
 
   return (
     <div className="cam" data-testid="camera">
@@ -177,10 +202,11 @@ export function CameraScreen() {
             type="button"
             role="radio"
             aria-checked={z === zoom}
+            aria-label={`${z}x zoom`}
             className={`cam__zoom-opt${z === zoom ? ' is-selected' : ''}`}
             onClick={() => setZoom(z)}
           >
-            {z}
+            {z === zoom ? `${z}x` : z}
           </button>
         ))}
       </div>

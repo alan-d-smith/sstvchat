@@ -31,7 +31,8 @@
   object-fit: contain;
 }
 
-.preview button {
+.preview__close,
+.preview__send {
   margin: 0;
   padding: 0;
   border: 0;
@@ -43,7 +44,8 @@
   appearance: none;
 }
 
-.preview button:focus-visible {
+.preview__close:focus-visible,
+.preview__send:focus-visible {
   outline: 2px solid var(--blue);
   outline-offset: 2px;
 }
