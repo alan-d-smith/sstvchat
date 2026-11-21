@@ -68,10 +68,18 @@ export function fskModulate(bytes: Uint8Array, sampleRate: number, amplitude: nu
 
 const HOPS_PER_BIT = 8;
 const RING = 32; // hop history: 4 bits (power of two)
-/** Carrier gate: (m + s)^2 / (2 * band-passed mean square). ~1.4 for a clean signal, ~0.1-0.3 for noise. */
-const CARRIER_PURITY = 0.6;
-/** Below this band-passed mean square (~ -100 dBFS) the input is treated as silence. */
-const SILENCE_MS = 1e-10;
+/** Tone bins plus guard bins (below mark, between the tones, above space) for the noise floor. */
+const BINS = 5;
+/**
+ * Carrier gate: mark + space power over the local noise floor (mean power of the guard bins,
+ * smoothed). A clean signal reads > 30 dB, white noise ~ 0-3 dB, crowd babble far below the tones
+ * ~ 0-6 dB.
+ */
+const CARRIER_SNR = 10;
+/** Floor smoothing: EMA weight per hop (time constant ~ 1 bit). */
+const FLOOR_ALPHA = 1 / HOPS_PER_BIT;
+/** Below this tone power (~ -100 dBFS) the input is treated as silence. */
+const SILENCE_POW = 1e-10;
 /** Abort a frame when no start bit arrives within this many byte-times. */
 const ABORT_BYTES = 3;
 /** Hunting: a start edge is when (m - s) falls below this fraction of the preceding mark level. */
@@ -94,6 +102,11 @@ const BITS = 1;
  * (mark minus space magnitude), sliced at the midpoint of the tracked mark and space levels, so
  * speaker/mic tilt and steady room reverb do not bias it.
  *
+ * Carrier: three guard bins (below mark, between the tones, above space; also orthogonal to both
+ * tones) measure the local noise floor. A hop carries signal when mark + space power stands
+ * CARRIER_SNR above it, which holds whatever the tones are and whatever is going on elsewhere in
+ * the spectrum (speech, music), unlike a broadband energy reference.
+ *
  * Timing: idle -> a start edge is found when A falls to half the preceding mark level (gated on
  * a clean carrier), then refined at the start-bit centre once the space level is known; the start
  * bit must be space at its centre (glitch rejection). Bits are sampled at their centres. Every
@@ -106,47 +119,32 @@ export class FskReceiver {
   private readonly win: number;
   private readonly spb: number;
   private readonly norm: number;
-  private readonly dMark: number;
-  private readonly dSpace: number;
-  private readonly rMr: number;
-  private readonly rMi: number;
-  private readonly rSr: number;
-  private readonly rSi: number;
-  // band-pass (RBJ, 0 dB peak, Q 1) used only for the carrier gate's energy reference
-  private readonly b0: number;
-  private readonly a1: number;
-  private readonly a2: number;
+  /** Per-sample phase steps of the BINS oscillators: mark, space, guard below, between, above. */
+  private readonly dPh: Float64Array;
+  private readonly rotR: Float64Array;
+  private readonly rotI: Float64Array;
   private readonly parser: PacketParser;
   private delivered = false;
 
-  // per-sample state
-  private z1 = 0;
-  private z2 = 0;
+  // per-sample state: oscillators (exact phase re-derived per hop) and the current hop's sums
   private fill = 0;
-  private phMark = 0;
-  private phSpace = 0;
-  private cMr = 1;
-  private cMi = 0;
-  private cSr = 1;
-  private cSi = 0;
-  private aMr = 0;
-  private aMi = 0;
-  private aSr = 0;
-  private aSi = 0;
-  private aE = 0;
+  private readonly ph = new Float64Array(BINS);
+  private readonly cR = new Float64Array(BINS);
+  private readonly cI = new Float64Array(BINS);
+  private readonly aR = new Float64Array(BINS);
+  private readonly aI = new Float64Array(BINS);
 
-  // per-hop sums of the last HOPS_PER_BIT hops
-  private readonly bMr = new Float64Array(HOPS_PER_BIT);
-  private readonly bMi = new Float64Array(HOPS_PER_BIT);
-  private readonly bSr = new Float64Array(HOPS_PER_BIT);
-  private readonly bSi = new Float64Array(HOPS_PER_BIT);
-  private readonly bE = new Float64Array(HOPS_PER_BIT);
+  // per-hop sums of the last HOPS_PER_BIT hops, [hop * BINS + bin]
+  private readonly bR = new Float64Array(HOPS_PER_BIT * BINS);
+  private readonly bI = new Float64Array(HOPS_PER_BIT * BINS);
 
   // hop history: mark/space magnitudes (~ tone amplitudes) and carrier flag
   private h = -1; // index of the last completed hop
   private readonly hm = new Float64Array(RING);
   private readonly hs = new Float64Array(RING);
   private readonly hc = new Uint8Array(RING);
+  /** Smoothed noise floor: mean guard-bin power. */
+  private floor = 0;
 
   // UART state
   private state = HUNT;
@@ -171,18 +169,11 @@ export class FskReceiver {
     this.hop = Math.max(1, Math.round(this.spb / HOPS_PER_BIT));
     this.win = this.hop * HOPS_PER_BIT;
     this.norm = 2 / this.win;
-    this.dMark = (TWO_PI * FSK.mark) / sampleRate;
-    this.dSpace = (TWO_PI * FSK.space) / sampleRate;
-    this.rMr = Math.cos(this.dMark);
-    this.rMi = -Math.sin(this.dMark);
-    this.rSr = Math.cos(this.dSpace);
-    this.rSi = -Math.sin(this.dSpace);
-    const w0 = (TWO_PI * Math.sqrt(FSK.mark * FSK.space)) / sampleRate;
-    const alpha = Math.sin(w0) / 2;
-    const a0 = 1 + alpha;
-    this.b0 = alpha / a0;
-    this.a1 = (-2 * Math.cos(w0)) / a0;
-    this.a2 = (1 - alpha) / a0;
+    const freqs = [FSK.mark, FSK.space, ...FSK_GUARD_HZ];
+    this.dPh = Float64Array.from(freqs, (f) => (TWO_PI * f) / sampleRate);
+    this.rotR = this.dPh.map(Math.cos);
+    this.rotI = this.dPh.map((d) => -Math.sin(d));
+    this.cR.fill(1);
     this.parser = new PacketParser({
       onFrameStart: () => this.events.onFrameStart?.(),
       onHeader: (hd) => this.events.onHeader?.(hd),
@@ -206,16 +197,17 @@ export class FskReceiver {
 
   reset(): void {
     this.parser.reset();
-    this.z1 = this.z2 = 0;
     this.fill = 0;
-    this.phMark = this.phSpace = 0;
-    this.cMr = this.cSr = 1;
-    this.cMi = this.cSi = 0;
-    this.aMr = this.aMi = this.aSr = this.aSi = this.aE = 0;
+    this.ph.fill(0);
+    this.cR.fill(1);
+    this.cI.fill(0);
+    this.aR.fill(0);
+    this.aI.fill(0);
     this.h = -1;
     this.hm.fill(0);
     this.hs.fill(0);
     this.hc.fill(0);
+    this.floor = 0;
     this.state = HUNT;
     this.huntFrom = 0;
     this.lastByteEnd = 0;
@@ -223,57 +215,34 @@ export class FskReceiver {
   }
 
   push(samples: Float32Array): void {
-    const { b0, a1, a2, rMr, rMi, rSr, rSi, hop } = this;
-    let { z1, z2, fill, cMr, cMi, cSr, cSi, aMr, aMi, aSr, aSi, aE } = this;
+    const { rotR, rotI, cR, cI, aR, aI, hop } = this;
+    let fill = this.fill;
     for (let i = 0; i < samples.length; i++) {
       const x = samples[i];
-      const y = b0 * x + z1;
-      z1 = z2 - a1 * y;
-      z2 = -b0 * x - a2 * y;
-      aE += y * y;
-      aMr += x * cMr;
-      aMi += x * cMi;
-      aSr += x * cSr;
-      aSi += x * cSi;
-      let t = cMr * rMr - cMi * rMi;
-      cMi = cMr * rMi + cMi * rMr;
-      cMr = t;
-      t = cSr * rSr - cSi * rSi;
-      cSi = cSr * rSi + cSi * rSr;
-      cSr = t;
+      for (let b = 0; b < BINS; b++) {
+        const r = cR[b];
+        const im = cI[b];
+        aR[b] += x * r;
+        aI[b] += x * im;
+        cR[b] = r * rotR[b] - im * rotI[b];
+        cI[b] = r * rotI[b] + im * rotR[b];
+      }
       if (++fill === hop) {
         fill = 0;
-        const k = (this.h + 1) % HOPS_PER_BIT;
-        this.bMr[k] = aMr;
-        this.bMi[k] = aMi;
-        this.bSr[k] = aSr;
-        this.bSi[k] = aSi;
-        this.bE[k] = aE;
-        aMr = aMi = aSr = aSi = aE = 0;
-        // Re-derive the oscillators from exact phase so rounding never accumulates.
-        this.phMark = (this.phMark + this.dMark * hop) % TWO_PI;
-        this.phSpace = (this.phSpace + this.dSpace * hop) % TWO_PI;
-        cMr = Math.cos(this.phMark);
-        cMi = -Math.sin(this.phMark);
-        cSr = Math.cos(this.phSpace);
-        cSi = -Math.sin(this.phSpace);
-        if (Math.abs(z1) < 1e-30) z1 = 0; // no denormals in long silence
-        if (Math.abs(z2) < 1e-30) z2 = 0;
+        const k = ((this.h + 1) % HOPS_PER_BIT) * BINS;
+        for (let b = 0; b < BINS; b++) {
+          this.bR[k + b] = aR[b];
+          this.bI[k + b] = aI[b];
+          aR[b] = aI[b] = 0;
+          // Re-derive the oscillators from exact phase so rounding never accumulates.
+          const p = (this.ph[b] = (this.ph[b] + this.dPh[b] * hop) % TWO_PI);
+          cR[b] = Math.cos(p);
+          cI[b] = -Math.sin(p);
+        }
         this.endHop();
       }
     }
-    this.z1 = z1;
-    this.z2 = z2;
     this.fill = fill;
-    this.cMr = cMr;
-    this.cMi = cMi;
-    this.cSr = cSr;
-    this.cSi = cSi;
-    this.aMr = aMr;
-    this.aMi = aMi;
-    this.aSr = aSr;
-    this.aSi = aSi;
-    this.aE = aE;
   }
 
   /** Centre (absolute sample time) of the one-bit window that ends with hop `i`. */
@@ -328,6 +297,17 @@ export class FskReceiver {
     return best;
   }
 
+  /** Magnitude (~ tone amplitude) of bin `b` over the last one-bit window. */
+  private mag(b: number): number {
+    let re = 0;
+    let im = 0;
+    for (let k = b; k < HOPS_PER_BIT * BINS; k += BINS) {
+      re += this.bR[k];
+      im += this.bI[k];
+    }
+    return this.norm * Math.sqrt(re * re + im * im);
+  }
+
   private endHop(): void {
     const h = ++this.h;
     const r = h & (RING - 1);
@@ -335,24 +315,14 @@ export class FskReceiver {
       this.hm[r] = this.hs[r] = this.hc[r] = 0;
       return;
     }
-    let mr = 0;
-    let mi = 0;
-    let sr = 0;
-    let si = 0;
-    let e = 0;
-    for (let k = 0; k < HOPS_PER_BIT; k++) {
-      mr += this.bMr[k];
-      mi += this.bMi[k];
-      sr += this.bSr[k];
-      si += this.bSi[k];
-      e += this.bE[k];
-    }
-    const m = this.norm * Math.sqrt(mr * mr + mi * mi);
-    const s = this.norm * Math.sqrt(sr * sr + si * si);
-    const ms = e / this.win;
+    const m = this.mag(0);
+    const s = this.mag(1);
+    const g = (this.mag(2) ** 2 + this.mag(3) ** 2 + this.mag(4) ** 2) / 3;
+    this.floor = h === HOPS_PER_BIT - 1 ? g : this.floor + FLOOR_ALPHA * (g - this.floor);
+    const tone = m * m + s * s;
     this.hm[r] = m;
     this.hs[r] = s;
-    this.hc[r] = ms > SILENCE_MS && (m + s) * (m + s) > 2 * CARRIER_PURITY * ms ? 1 : 0;
+    this.hc[r] = tone > SILENCE_POW && tone > CARRIER_SNR * this.floor ? 1 : 0;
     if (h < 2 * HOPS_PER_BIT) return; // need a bit of history
     const tc = this.centre(h);
     if (this.state === HUNT) this.hunt(h, tc);

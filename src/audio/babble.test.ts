@@ -65,6 +65,7 @@ describe('babble channel', () => {
     if (FULL) {
       console.log(`babble sweep, ${SEEDS.length} seeds\n` + SNRS.map((s) => `${String(s).padStart(4)} dB  ${(100 * rate[s]).toFixed(0).padStart(3)} %`).join('\n'));
     }
-    expect(rate[6]).toBeGreaterThanOrEqual(0.75);
+    // The 1200/2200 Hz modem managed ~25 % at -6 dB; above the speech band it should be near 100 %.
+    for (const snr of [6, 0, -6]) expect(rate[snr]).toBeGreaterThanOrEqual(0.75);
   });
 });
