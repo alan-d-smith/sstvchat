@@ -19,6 +19,12 @@ export interface AccountStore {
   userKeys(): Promise<string[]>;
   /** MGET. */
   mget(keys: string[]): Promise<unknown[]>;
+  /** SADD key member. */
+  sadd(key: string, member: string): Promise<void>;
+  /** SREM key member. */
+  srem(key: string, member: string): Promise<void>;
+  /** SMEMBERS key (empty when the set does not exist). */
+  smembers(key: string): Promise<string[]>;
 }
 
 export interface Passwords {
@@ -31,9 +37,9 @@ export interface UserRecord { token: string; pw: string | null }
 
 export interface Result { status: number; body: unknown }
 
-const isSeed = (v: unknown): v is number => Number.isInteger(v) && (v as number) >= 0 && (v as number) <= 2 ** 31;
+export const isSeed = (v: unknown): v is number => Number.isInteger(v) && (v as number) >= 0 && (v as number) <= 2 ** 31;
 
-function asRecord(v: unknown): UserRecord | null {
+export function asRecord(v: unknown): UserRecord | null {
   if (!v || typeof v !== 'object') return null;
   const { token, pw } = v as Record<string, unknown>;
   return typeof token === 'string' ? { token, pw: typeof pw === 'string' ? pw : null } : null;
@@ -90,7 +96,7 @@ export async function users(store: AccountStore): Promise<Result> {
   };
 }
 
-/** In-memory AccountStore with Redis semantics (SET NX, INCR, EXPIRE): `vite` dev server and tests. */
+/** In-memory AccountStore with Redis semantics (SET NX, INCR, EXPIRE, sets): `vite` dev server and tests. */
 export function memoryStore(now: () => number = Date.now): AccountStore {
   const db = new Map<string, { value: unknown; expires: number }>();
   const live = (key: string) => {
@@ -120,5 +126,20 @@ export function memoryStore(now: () => number = Date.now): AccountStore {
     },
     userKeys: async () => [...db.keys()].filter((k) => k.startsWith('user:') && live(k)),
     mget: async (keys) => keys.map((k) => live(k)?.value ?? null),
+    sadd: async (key, member) => {
+      const e = live(key);
+      if (e?.value instanceof Set) e.value.add(member);
+      else db.set(key, { value: new Set([member]), expires: Infinity });
+    },
+    srem: async (key, member) => {
+      const e = live(key);
+      if (!(e?.value instanceof Set)) return;
+      e.value.delete(member);
+      if (e.value.size === 0) db.delete(key); // Redis drops empty sets
+    },
+    smembers: async (key) => {
+      const v = live(key)?.value;
+      return v instanceof Set ? [...v] as string[] : [];
+    },
   };
 }

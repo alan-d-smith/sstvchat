@@ -28,7 +28,11 @@ function connectRedis(): Redis {
   throw new RedisNotConfigured();
 }
 
-/** AccountStore over the Upstash Redis connected to this Vercel project (UPSTASH_REDIS_REST_* env). */
+/**
+ * AccountStore over the Upstash Redis connected to this Vercel project (UPSTASH_REDIS_REST_* env).
+ * The client auto-pipelines (its default), so commands started together — e.g. under one
+ * Promise.all — travel in a single REST round trip.
+ */
 export function redisStore(): AccountStore {
   const redis = connectRedis();
   return {
@@ -52,6 +56,14 @@ export function redisStore(): AccountStore {
       return [...new Set(keys)];
     },
     mget: (keys) => redis.mget(...keys),
+    sadd: async (key, member) => {
+      await redis.sadd(key, member);
+    },
+    srem: async (key, member) => {
+      await redis.srem(key, member);
+    },
+    // Members come back JSON-decoded (a name like "42" as a number), so turn them back into strings.
+    smembers: async (key) => ((await redis.smembers(key)) as unknown[]).map(String),
   };
 }
 
