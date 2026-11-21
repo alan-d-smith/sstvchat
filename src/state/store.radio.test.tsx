@@ -222,8 +222,8 @@ describe('persistence', () => {
     expect(zed.messages).toEqual([]);
     expect(zed.status.kind).not.toBe('receiving');
     expect(zed.hasIncomingSnap).toBe(false);
-    // The demo chat that is "receiving" by design keeps its look.
-    expect(second.chat('beatriz')?.status.kind ?? 'receiving').toBe('receiving');
+    // No chat is left stuck receiving after the reload.
+    expect(second.api().chats.filter((c) => c.status.kind === 'receiving')).toEqual([]);
   });
 });
 
