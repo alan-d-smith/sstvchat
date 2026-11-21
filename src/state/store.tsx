@@ -51,6 +51,12 @@ export interface AppApi {
   /** The name/avatar screen is showing (always while `self` is null). */
   accountOpen: boolean; openAccount(): void; closeAccount(): void;
   radio: RadioState; enableRadio(): void;
+  /** Mic sample rate while the radio is on; null without a live mic (tests, mock transport). Optional so fakes can skip it. */
+  micSampleRate?: number | null;
+  /** Raw mic chunks as they arrive (none while transmitting); a no-op without a real audio engine. */
+  onMicSamples?(fn: (chunk: Float32Array) => void): () => void;
+  /** True for an incoming message that is only simulated (demo panel, mock chats), not heard over the air. */
+  simulatedRx?(msgId: string): boolean;
   /** Opens (or creates) the 1:1 chat with a username; returns its chat id, or null for an invalid name. */
   startChat(username: string): string | null;
   /** Re-reads the claimed usernames (GET /api/users) into `people`. */
@@ -321,6 +327,13 @@ export function AppProvider({ children, transport: given }: { children: ReactNod
   }, [engine]);
 
   const enableRadio = useCallback(() => { void engine?.start(); }, [engine]);
+  const onMicSamples = useCallback((fn: (chunk: Float32Array) => void) => engine?.onSamples(fn) ?? (() => {}), [engine]);
+  /** Receive handles started by simulateIncoming. */
+  const simHandles = useRef(new Set<Handle>());
+  const simulatedRx = useCallback((msgId: string) => {
+    for (const [h, m] of rxMeta.current) if (m.msgId === msgId) return simHandles.current.has(h);
+    return false;
+  }, []);
 
   // Tones the receiver can't frame (e.g. Windows "Audio enhancements" eating them): say so once.
   useEffect(() => {
@@ -668,6 +681,7 @@ export function AppProvider({ children, transport: given }: { children: ReactNod
     pendingRx.current = target;
     try {
       const h = transport.simulateIncoming(from, kind, payload, startAt);
+      simHandles.current.add(h);
       if (!rxMeta.current.has(h)) {
         const prev = stateRef.current.chats.find((c) => c.id === target.chatId)!.status;
         rxMeta.current.set(h, { ...target, kind, start: Date.now(), prev, live: true, rows: 0, added: false });
@@ -875,6 +889,9 @@ export function AppProvider({ children, transport: given }: { children: ReactNod
       closeAccount: () => setAccountOpen(false),
       radio,
       enableRadio,
+      micSampleRate: engine && (radio === 'listening' || radio === 'transmitting') ? engine.sampleRate : null,
+      onMicSamples,
+      simulatedRx,
       refreshPeople: refreshDirectory,
       startChat: (username) => {
         const id = normalizeName(username);
