@@ -35,11 +35,9 @@ describe('mock data', () => {
     expect(r.messages.some((m) => m.type === 'sticker')).toBe(true);
   });
 
-  it('Beatriz M is mid-receive at 62% with an incoming snap', () => {
-    const b = chats.find((c) => c.title === 'Beatriz M')!;
-    expect(b.status.kind).toBe('receiving');
-    expect(b.status.progress).toBe(0.62);
-    expect(b.hasIncomingSnap).toBe(true);
+  it('has no incoming snaps or in-progress receives in the dummy data', () => {
+    expect(chats.some((c) => c.hasIncomingSnap)).toBe(false);
+    expect(chats.some((c) => c.status.kind === 'receiving')).toBe(false);
   });
 
   it('includes a long name for truncation checks', () => {

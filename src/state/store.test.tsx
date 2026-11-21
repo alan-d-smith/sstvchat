@@ -98,11 +98,13 @@ describe('AppProvider', () => {
 
   it('openSnap resumes, finishes, and closing marks opened', async () => {
     const r = setup();
+    act(() => r.result.current.demoIncoming('beatriz', 'snap'));
+    await advance(100);
     act(() => r.result.current.openSnap('beatriz'));
     const pane = r.result.current.pane;
     expect(pane).toMatchObject({ mode: 'viewer', chatId: 'beatriz' });
     const h = (pane as { handle: string }).handle;
-    expect(r.result.current.rxLabel[h]).toMatch(/^Robot36 · 62% · 0:00$/);
+    expect(r.result.current.rxLabel[h]).toMatch(/^Robot36 · \d+% · /);
     await advance(100);
     expect(chat(r, 'beatriz').status).toMatchObject({ kind: 'receiving', medium: 'snap' });
     await advance(1000);
@@ -185,7 +187,7 @@ describe('AppProvider', () => {
     act(() => r.result.current.demoIncoming('julie', 'snap'));
     act(() => r.result.current.resetDemo());
     await advance(3000);
-    expect(r.result.current.chats.find((c) => c.id === 'julie')!.status).toMatchObject({ kind: 'new-snap', time: '16m' });
+    expect(r.result.current.chats.find((c) => c.id === 'julie')!.status).toMatchObject({ kind: 'received', time: '16m' });
     expect(Object.keys(r.result.current.rxLabel)).toHaveLength(0);
   });
 

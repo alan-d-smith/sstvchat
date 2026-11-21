@@ -98,6 +98,9 @@ describe('Sidebar', () => {
   });
 
   it('also opens the snap when a row with an incoming snap is clicked', () => {
+    api.current = fakeApi({
+      chats: chats.map((c) => (c.id === 'julie' ? { ...c, hasIncomingSnap: true } : c)),
+    });
     render(<Sidebar />);
     fireEvent.click(row(/Julie/));
     expect(api.current.selectChat).toHaveBeenCalledWith('julie');
@@ -127,8 +130,8 @@ describe('Sidebar', () => {
 
   it('shows the status line under the name', () => {
     render(<Sidebar />);
-    expect(row(/Julie/)).toHaveTextContent('New Snap · 16m · 29🔥');
-    expect(row(/Beatriz/)).toHaveTextContent('Receiving · 62%');
+    expect(row(/Julie/)).toHaveTextContent('Received · 16m · 29🔥');
+    expect(row(/Beatriz/)).toHaveTextContent('Opened · 2h');
   });
 
   it('opens a New Chat list from the compose button and selects the picked friend', () => {

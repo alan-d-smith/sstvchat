@@ -3,7 +3,8 @@
 
 import type { Chat, Message, Person } from '../types';
 
-const CHATS_KEY = 'sstv.chats';
+// v2: dropped the dummy Beatriz receive and Julie snap from the mock data.
+const CHATS_KEY = 'sstv.chats.v2';
 const PEOPLE_KEY = 'sstv.people';
 
 function read<T>(key: string): T | null {

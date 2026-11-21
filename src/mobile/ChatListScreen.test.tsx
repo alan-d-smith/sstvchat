@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { AppProvider, useApp } from '../state/store';
+import type { AppApi } from '../state/store';
+import { act } from '@testing-library/react';
 import { createMockTransport } from '../sim/transport';
 import { MobileApp } from './MobileApp';
 
@@ -25,8 +27,10 @@ function mockMedia(mobile: boolean) {
 }
 
 /** Exposes store state so tests can assert on it without reaching into components. */
+let demoIncoming: AppApi['demoIncoming'];
 function Probe() {
-  const { tab, overlay } = useApp();
+  const { tab, overlay, ...rest } = useApp();
+  demoIncoming = rest.demoIncoming;
   return <output data-testid="probe" data-tab={tab} data-overlay={JSON.stringify(overlay)} />;
 }
 
@@ -41,6 +45,11 @@ function renderMobile() {
   );
   const probe = screen.getByTestId('probe');
   return {
+    /** Delivers a finished incoming snap from a friend. */
+    receiveSnap: (from: string) => {
+      act(() => demoIncoming(from, 'snap'));
+      act(() => { vi.advanceTimersByTime(2000); });
+    },
     tab: () => probe.dataset.tab,
     overlay: () => JSON.parse(probe.dataset.overlay ?? 'null'),
   };
@@ -75,7 +84,8 @@ describe('mobile chat list', () => {
 
   it('lists every chat with its status line', () => {
     renderMobile();
-    expect(within(row('Beatriz M')).getByText('Receiving')).toBeInTheDocument();
+    expect(within(row('Beatriz M')).getByText('Opened')).toBeInTheDocument();
+    expect(within(row('💎Julie💎')).getByText('Received')).toBeInTheDocument();
     expect(within(row('Roomies')).getByText('Opened')).toBeInTheDocument();
     expect(screen.getByText('Alexandria Montgomery-Featherstone')).toBeInTheDocument();
   });
@@ -89,7 +99,8 @@ describe('mobile chat list', () => {
 
   it('tapping a row with an incoming snap calls openSnap instead of opening the conversation', () => {
     const spies = spyOnActions();
-    renderMobile();
+    const s = renderMobile();
+    s.receiveSnap('julie');
     fireEvent.click(within(row('💎Julie💎')).getByRole('button', { name: /^💎Julie💎/ }));
     expect(spies.openSnap).toHaveBeenCalledWith('julie');
     expect(spies.setOverlay).not.toHaveBeenCalled();
@@ -97,6 +108,7 @@ describe('mobile chat list', () => {
 
   it('tapping a row with an incoming snap opens the snap viewer', () => {
     const s = renderMobile();
+    s.receiveSnap('julie');
     fireEvent.click(within(row('💎Julie💎')).getByRole('button', { name: /^💎Julie💎/ }));
     expect(s.overlay()).toMatchObject({ type: 'viewer', chatId: 'julie' });
   });

@@ -176,6 +176,8 @@ describe('mobile snap viewer', () => {
 
   it('opened from a snap tile in the conversation, closing returns to that conversation', () => {
     renderMobile();
+    act(() => api.demoIncoming('julie', 'snap'));
+    act(() => { vi.advanceTimersByTime(SNAP_MS + 1000); });
     act(() => api.setOverlay({ type: 'conversation', chatId: 'julie' }));
     fireEvent.click(screen.getByRole('button', { name: 'Snap' }));
     expect(api.overlay).toMatchObject({ type: 'viewer', chatId: 'julie' });

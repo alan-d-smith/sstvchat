@@ -36,15 +36,13 @@ const roomiesThread: Message[] = [
 export const chats: Chat[] = [
   {
     id: 'beatriz', title: 'Beatriz M', isGroup: false, memberIds: ['beatriz'],
-    status: { kind: 'receiving', medium: 'snap', progress: 0.62 },
-    hasIncomingSnap: true,
-    messages: [{ id: 'b1', senderId: 'beatriz', type: 'snap', opened: false }],
+    status: { kind: 'opened', medium: 'chat', time: '2h' },
+    messages: [{ id: 'b1', senderId: 'beatriz', type: 'text', text: 'see you tomorrow!' }],
   },
   {
     id: 'julie', title: '💎Julie💎', isGroup: false, memberIds: ['julie'],
-    status: { kind: 'new-snap', medium: 'snap', time: '16m', streak: 29 },
-    hasIncomingSnap: true,
-    messages: [{ id: 'j1', senderId: 'julie', type: 'snap', opened: false }],
+    status: { kind: 'received', medium: 'chat', time: '16m', streak: 29 },
+    messages: [{ id: 'j1', senderId: 'julie', type: 'text', text: 'lol yes' }],
   },
   {
     id: 'roomies', title: 'Roomies', isGroup: true, memberIds: ['sophie', 'ben', 'jen', ME],
