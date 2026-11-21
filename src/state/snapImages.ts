@@ -119,6 +119,13 @@ export async function loadSnapImages(): Promise<Map<string, ImageData>> {
   return out;
 }
 
+/** Forgets one saved image (its message was deleted on this device). */
+export function deleteSnapImage(id: string): void {
+  drop(id);
+  const ids = readIndex();
+  if (ids.includes(id)) writeIndex(ids.filter((x) => x !== id));
+}
+
 export async function clearSnapImages(): Promise<void> {
   for (const id of readIndex()) drop(id);
   writeIndex([]);

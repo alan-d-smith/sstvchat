@@ -34,6 +34,7 @@ function fakeApi(over: Partial<AppApi> = {}): AppApi {
     sendText: vi.fn(),
     sendSnap: vi.fn(),
     cancel: vi.fn(),
+    deleteMessage: vi.fn(),
     demoIncoming: vi.fn(),
     resetDemo: vi.fn(),
     self: null,

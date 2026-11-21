@@ -15,7 +15,7 @@ import type { RadioDiag } from '../audio/diagnostics';
 import { NAME_RE, claimName, fetchUsers, normalizeName, saveAccount, savedAccount, seedFor } from './account';
 import type { Account, ClaimResult, DirectoryUser } from './account';
 import { decodeHintDismissedRecently, loadChats, loadHeard, loadPeople, saveChats, saveDecodeHintDismissed, saveHeard, savePeople } from './persist';
-import { clearSnapImages, loadSnapImages, newImageId, saveSnapImage } from './snapImages';
+import { clearSnapImages, deleteSnapImage, loadSnapImages, newImageId, saveSnapImage } from './snapImages';
 
 export type { Account, ClaimResult } from './account';
 export type { RadioState } from '../audio/engine';
@@ -33,6 +33,8 @@ export interface AppApi {
   openSnap(chatId: string): void;
   sendText(chatId: string, text: string): void; sendSnap(chatIds: string[]): void;
   cancel(h: Handle): void;
+  /** Removes one message (anyone's) from this device only — nothing is sent; a saved snap image goes too. */
+  deleteMessage(chatId: string, messageId: string): void;
   demoIncoming(from: string, kind: 'snap' | 'text'): void; resetDemo(): void;
   /** This device's claimed username (its radio address) and avatar; null until one is claimed. */
   self: Account | null;
@@ -628,6 +630,22 @@ export function AppProvider({ children, transport: given }: { children: ReactNod
         startTx({ kind: 'snap', chatIds: [...chatIds] }, () => transport.sendSnap(chatIds, image));
       },
       cancel: (h) => transport.cancel(h),
+      deleteMessage: (chatId, messageId) => {
+        const gone = stateRef.current.chats.find((c) => c.id === chatId)?.messages.find((m) => m.id === messageId);
+        if (!gone) return;
+        if (gone.type === 'snap' && gone.imageId) {
+          images.current.delete(gone.imageId);
+          deleteSnapImage(gone.imageId);
+        }
+        // The chat status stays as it was; only a row that would open the deleted snap is updated.
+        patchChat(chatId, (c) => {
+          const messages = c.messages.filter((m) => m.id !== messageId);
+          const hasIncomingSnap = isIncomingSnap(gone) && !gone.opened
+            ? messages.some((x) => isIncomingSnap(x) && !x.opened)
+            : c.hasIncomingSnap;
+          return { ...c, messages, hasIncomingSnap };
+        });
+      },
       demoIncoming: (from, kind) => {
         const target = findChat(from);
         if (!target) return;
