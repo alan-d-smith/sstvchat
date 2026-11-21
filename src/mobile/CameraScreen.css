@@ -156,6 +156,17 @@
   line-height: 1;
 }
 
+/* Unread notifications on the bell. */
+.cam__dot {
+  position: absolute;
+  top: 7px;
+  left: 30px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--red);
+}
+
 /* ---------- right tool rail: 40px pitch under the flip button ---------- */
 
 .cam__rail {

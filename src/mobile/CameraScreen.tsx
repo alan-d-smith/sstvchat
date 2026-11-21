@@ -7,6 +7,8 @@ import { LensCarousel } from '../components/LensCarousel';
 import { filterCss, grabSnap, imageFileToSnap, useCamera } from '../media/camera';
 import type { SnapFilter } from '../media/camera';
 import { useApp } from '../state/store';
+import { useFriends } from '../state/friendsContext';
+import { addFriendsLabel, badgeText } from '../state/friends';
 import { ME } from '../types';
 import type { Person } from '../types';
 import './CameraScreen.css';
@@ -50,6 +52,8 @@ function centreInScroller(scroller: HTMLElement, el: HTMLElement, smooth: boolea
  */
 export function CameraScreen() {
   const { people, takeSnap, overlay, openAccount } = useApp();
+  const { incoming, openAdd, openNotices, unread } = useFriends();
+  const requests = incoming.length;
   const me = people[ME] ?? SELF;
   // Release the camera while the preview (or any overlay) covers this screen.
   const cam = useCamera(overlay === null);
@@ -110,10 +114,25 @@ export function CameraScreen() {
           <ToolButton icon="search" label="Search" className="cam__btn--search" />
         </div>
         <div className="cam__group">
-          <ToolButton icon="bell" label="Notifications" className="cam__btn--bell" />
-          <button type="button" className="cam__btn cam__btn--add" aria-label="Add friends, 5 requests">
+          <button
+            type="button"
+            className="cam__btn cam__btn--bell"
+            aria-label={unread ? `Notifications, ${unread} new` : 'Notifications'}
+            aria-haspopup="dialog"
+            onClick={openNotices}
+          >
+            <Icon name="bell" />
+            {unread > 0 && <span className="cam__dot" aria-hidden="true" />}
+          </button>
+          <button
+            type="button"
+            className="cam__btn cam__btn--add"
+            aria-label={addFriendsLabel(requests)}
+            aria-haspopup="dialog"
+            onClick={openAdd}
+          >
             <Icon name="add-friend" />
-            <span className="cam__badge" aria-hidden="true">5</span>
+            {badgeText(requests) && <span className="cam__badge" aria-hidden="true">{badgeText(requests)}</span>}
           </button>
           <ToolButton icon="flip" label="Flip camera" className="cam__btn--flip" onClick={cam.flip} />
         </div>

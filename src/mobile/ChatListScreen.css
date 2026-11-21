@@ -94,6 +94,18 @@
   text-align: center;
 }
 
+/* Unread notifications on the bell. */
+.m-round__dot {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--red);
+  box-shadow: 0 0 0 1.5px var(--bg);
+}
+
 /* ---------- scroll area: chips + rows ---------- */
 
 .m-chats__scroll {
@@ -253,7 +265,7 @@
   cursor: pointer;
 }
 
-/* ---------- add-a-friend sheet ---------- */
+/* ---------- new chat sheet ---------- */
 
 .m-sheet {
   position: fixed;

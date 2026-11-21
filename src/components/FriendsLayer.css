@@ -1,0 +1,223 @@
+/* ---------- toast ---------- */
+
+.friend-toast-region {
+  position: fixed;
+  /* Under the top bars, so the badge and bell it refers to stay in view. */
+  top: calc(env(safe-area-inset-top) + 58px);
+  left: 50%;
+  z-index: 70;
+  width: max-content;
+  max-width: calc(100vw - 24px);
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.friend-toast {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 6px 6px 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-elev);
+  box-shadow: 0 8px 28px color-mix(in srgb, var(--text) 18%, transparent);
+  color: var(--text);
+  pointer-events: auto;
+  animation: friend-toast-in 180ms ease-out;
+}
+
+@keyframes friend-toast-in {
+  from { opacity: 0; transform: translateY(-8px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .friend-toast { animation: none; }
+}
+
+.friend-toast__avatar {
+  flex: none;
+  line-height: 0;
+}
+
+.friend-toast__text {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 14.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.friend-toast__view {
+  flex: none;
+  height: 30px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--yellow);
+  /* Black on the brand yellow in both themes. */
+  color: #000;
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.friend-toast[data-kind='accepted'] .friend-toast__view {
+  background: var(--blue);
+  color: #fff;
+}
+
+.friend-toast__close {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--btn-neutral);
+  color: var(--text-2);
+  cursor: pointer;
+}
+
+/* ---------- notifications list (mobile bell) ---------- */
+
+.notices {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
+  background: var(--bg);
+  color: var(--text);
+}
+
+.notices__head {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  height: 50px;
+  padding: 0 8px 0 16px;
+}
+
+.notices__title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.notices__close {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--btn-neutral);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.notices__enable {
+  display: inline-flex;
+  flex: none;
+  align-self: flex-start;
+  align-items: center;
+  gap: 5px;
+  margin: 0 16px 8px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--blue);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.notices__empty {
+  margin: 0;
+  padding: 24px 16px;
+  color: var(--text-2);
+  font-size: 14px;
+  text-align: center;
+}
+
+.notices__list {
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.notices__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  height: 60px;
+  padding: 0 16px 0 10px;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.notices__item:active {
+  background: var(--bg-hover);
+}
+
+.notices__avatar {
+  flex: none;
+  line-height: 0;
+}
+
+.notices__text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.notices__line {
+  overflow: hidden;
+  font-size: 15.5px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.notices__item.is-unread .notices__line {
+  font-weight: 700;
+}
+
+.notices__time {
+  color: var(--text-2);
+  font-size: 12px;
+}
+
+.notices__dot {
+  flex: none;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--red);
+}
+
+.friend-toast__view:focus-visible,
+.friend-toast__close:focus-visible,
+.notices__close:focus-visible,
+.notices__enable:focus-visible,
+.notices__item:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: -2px;
+}

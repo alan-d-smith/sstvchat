@@ -143,6 +143,16 @@ describe('Sidebar', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 
+  it('has a yellow add-friend button before compose, with no badge when nothing is pending', () => {
+    render(<Sidebar />);
+    const add = screen.getByRole('button', { name: 'Add friends' });
+    expect(add).toHaveClass('sidebar__add');
+    expect(add.querySelector('[data-icon="add-friend"]')).not.toBeNull();
+    expect(add.querySelector('.sidebar__badge')).toBeNull();
+    const actions = add.closest('.sidebar__actions')!;
+    expect(within(actions as HTMLElement).getByRole('button', { name: 'New chat' })).toBeInTheDocument();
+  });
+
   it('closes the New Chat list with Escape', () => {
     render(<Sidebar />);
     fireEvent.click(screen.getByRole('button', { name: 'New chat' }));

@@ -61,7 +61,8 @@ describe('CameraScreen and PreviewScreen (mobile)', () => {
     expect(names.slice(0, 3)).toEqual(['Favourites', 'Create with AI', 'Aesthetic']);
     expect(within(tabs).getByRole('tab', { selected: true })).toHaveTextContent('Create with AI');
 
-    expect(screen.getByRole('button', { name: /add friends/i })).toHaveTextContent('5');
+    // No made-up request count: the badge only shows real pending requests.
+    expect(screen.getByRole('button', { name: 'Add friends' }).querySelector('.cam__badge')).toBeNull();
   });
 
   it('shutter opens the preview, which draws the capture and closes back to the camera', () => {

@@ -3,6 +3,9 @@ import type { KeyboardEvent } from 'react';
 import { useApp } from '../state/store';
 import { ME } from '../types';
 import type { Chat, Person } from '../types';
+import { useFriends } from '../state/friendsContext';
+import { addFriendsLabel, badgeText } from '../state/friends';
+import { AddFriends } from '../components/AddFriends';
 import { Avatar } from '../components/Avatar';
 import { Icon } from '../components/Icon';
 import { Logo } from '../components/Logo';
@@ -69,7 +72,58 @@ function NewChat({ onPick }: { onPick(chatId: string): void }) {
   );
 }
 
-/** Desktop left column: header (me, logo, compose), search pill and the chat list. */
+/** Yellow add-friend button with the pending-request count; Add Friends opens as a popover under it. */
+function AddFriendsButton({ onChat }: { onChat(chatId: string): void }) {
+  const { incoming, addOpen, openAdd, closeAdd } = useFriends();
+  const wrap = useRef<HTMLDivElement>(null);
+  const button = useRef<HTMLButtonElement>(null);
+  const count = incoming.length;
+
+  useEffect(() => {
+    if (!addOpen) return;
+    const onDown = (e: MouseEvent) => {
+      const target = e.target as Element;
+      // The toast's "View" opens this popover itself: leave it to that click.
+      if (!wrap.current?.contains(target) && !target.closest?.('.friend-toast')) closeAdd();
+    };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [addOpen, closeAdd]);
+
+  const close = () => {
+    closeAdd();
+    button.current?.focus();
+  };
+
+  return (
+    <div className="add-friend" ref={wrap}>
+      <button
+        ref={button}
+        type="button"
+        className="sidebar__add"
+        aria-label={addFriendsLabel(count)}
+        aria-haspopup="dialog"
+        aria-expanded={addOpen}
+        onClick={() => (addOpen ? close() : openAdd())}
+      >
+        <Icon name="add-friend" size={22} />
+        {badgeText(count) && <span className="sidebar__badge" aria-hidden="true">{badgeText(count)}</span>}
+      </button>
+      {addOpen && (
+        <AddFriends
+          variant="popover"
+          onClose={close}
+          onChat={(chatId) => {
+            onChat(chatId);
+            close();
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+/** Desktop left column: header (me, logo, add friends + compose), search pill and the chat list. */
 export function Sidebar() {
   const { chats, people, selectedChatId, selectChat, openSnap, self, openAccount } = useApp();
   const me: Person = self ? { id: self.id, name: self.name, seed: self.avatar, color: SELF.color } : SELF;
@@ -101,9 +155,13 @@ export function Sidebar() {
           <span className="sidebar__logo">
             <Logo size={32} />
           </span>
-          <RadioPill />
+          {/* Short label: the add-friend button leaves the brand ~160px; the full one stays in the tooltip. */}
+          <RadioPill compact />
         </span>
-        <NewChat onPick={selectChat} />
+        <span className="sidebar__actions">
+          <AddFriendsButton onChat={selectChat} />
+          <NewChat onPick={selectChat} />
+        </span>
       </header>
 
       <div className="sidebar__search">

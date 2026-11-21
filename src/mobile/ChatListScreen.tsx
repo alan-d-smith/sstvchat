@@ -4,6 +4,8 @@ import { Icon } from '../components/Icon';
 import { RadioPill } from '../components/RadioPill';
 import { StartChat } from '../components/StartChat';
 import { useApp } from '../state/store';
+import { useFriends } from '../state/friendsContext';
+import { addFriendsLabel, badgeText } from '../state/friends';
 import { ME } from '../types';
 import type { Person } from '../types';
 import { MobileChatRow } from './MobileChatRow';
@@ -12,8 +14,8 @@ import './ChatListScreen.css';
 /** The user's own avatar before a name is claimed (profile button and the "My AI" chip). */
 const SELF: Person = { id: ME, name: 'Me', seed: 7, color: 'var(--blue)' };
 
-/** Bottom sheet from the yellow add-friend button: add someone by username or pick a known person. */
-function AddFriendSheet({ onClose }: { onClose(): void }) {
+/** Bottom sheet from the compose button: chat with someone by username or pick a known person. */
+function NewChatSheet({ onClose }: { onClose(): void }) {
   const { setOverlay } = useApp();
   const titleId = useId();
   const sheet = useRef<HTMLDivElement>(null);
@@ -40,7 +42,7 @@ function AddFriendSheet({ onClose }: { onClose(): void }) {
         }}
       >
         <div className="m-sheet__head">
-          <h2 className="m-sheet__title" id={titleId}>Add a friend</h2>
+          <h2 className="m-sheet__title" id={titleId}>New Chat</h2>
           <button type="button" className="m-round" aria-label="Close" onClick={onClose}>
             <Icon name="close" size={20} />
           </button>
@@ -58,12 +60,13 @@ function AddFriendSheet({ onClose }: { onClose(): void }) {
 
 const CHIPS = ['Flashbacks', 'Groups', 'Near me', 'Best Friends'];
 const FLASHBACKS = 4;
-const FRIEND_REQUESTS = 5;
 
 /** Mobile Chat tab: top bar, filter chips, chat rows and the compose button. */
 export function ChatListScreen() {
   const { chats, self, openAccount } = useApp();
-  const [adding, setAdding] = useState(false);
+  const { incoming, openAdd, openNotices, unread } = useFriends();
+  const [composing, setComposing] = useState(false);
+  const requests = incoming.length;
   const me: Person = self ? { id: self.id, name: self.name, seed: self.avatar, color: SELF.color } : SELF;
   return (
     <section className="m-chats" aria-labelledby="m-chats-title">
@@ -88,18 +91,25 @@ export function ChatListScreen() {
           <RadioPill compact />
         </div>
         <div className="m-chats__group m-chats__group--end">
-          <button type="button" className="m-round" aria-label="Notifications">
+          <button
+            type="button"
+            className="m-round"
+            aria-label={unread ? `Notifications, ${unread} new` : 'Notifications'}
+            aria-haspopup="dialog"
+            onClick={openNotices}
+          >
             <Icon name="bell" size={26} />
+            {unread > 0 && <span className="m-round__dot" aria-hidden="true" />}
           </button>
           <button
             type="button"
             className="m-round m-round--yellow"
-            aria-label={`Add friends, ${FRIEND_REQUESTS} requests`}
+            aria-label={addFriendsLabel(requests)}
             aria-haspopup="dialog"
-            onClick={() => setAdding(true)}
+            onClick={openAdd}
           >
             <Icon name="add-friend" size={24} />
-            <span className="m-round__badge" aria-hidden="true">{FRIEND_REQUESTS}</span>
+            {badgeText(requests) && <span className="m-round__badge" aria-hidden="true">{badgeText(requests)}</span>}
           </button>
           <button type="button" className="m-round" aria-label="More">
             <Icon name="more" size={24} />
@@ -130,11 +140,11 @@ export function ChatListScreen() {
         </ul>
       </div>
 
-      <button type="button" className="m-fab" aria-label="New chat">
+      <button type="button" className="m-fab" aria-label="New chat" aria-haspopup="dialog" onClick={() => setComposing(true)}>
         <Icon name="compose" size={34} />
       </button>
 
-      {adding && <AddFriendSheet onClose={() => setAdding(false)} />}
+      {composing && <NewChatSheet onClose={() => setComposing(false)} />}
     </section>
   );
 }

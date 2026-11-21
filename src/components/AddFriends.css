@@ -1,0 +1,296 @@
+/* Add Friends: a popover under the desktop sidebar button, a full-screen sheet on mobile. */
+
+.add-friends {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--bg-elev);
+  color: var(--text);
+}
+
+.add-friends--popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 20;
+  width: 288px;
+  max-height: min(480px, calc(100dvh - 80px));
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  box-shadow: 0 8px 28px color-mix(in srgb, var(--text) 16%, transparent);
+}
+
+.add-friends--sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
+  background: var(--bg);
+}
+
+.add-friends__head {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 10px 8px 16px;
+}
+
+.add-friends--sheet .add-friends__head {
+  height: 50px;
+  padding: 0 8px 0 16px;
+}
+
+.add-friends__title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.add-friends--sheet .add-friends__title {
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.add-friends__close {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--btn-neutral);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.add-friends--sheet .add-friends__close {
+  width: 40px;
+  height: 40px;
+}
+
+/* ---------- search ---------- */
+
+.add-friends__search {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  margin: 0 16px;
+  padding: 0 12px 0 10px;
+  border: 1px solid var(--border-input);
+  border-radius: 999px;
+  background: var(--bg);
+  color: var(--text-2);
+  cursor: text;
+}
+
+.add-friends__search:focus-within {
+  border-color: var(--blue);
+}
+
+.add-friends__search .icon {
+  flex: none;
+  stroke-width: 3;
+}
+
+.add-friends__input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 15px;
+}
+
+.add-friends__input::placeholder {
+  color: var(--text-2);
+  opacity: 1;
+}
+
+.add-friends__input::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.add-friends__notify {
+  display: inline-flex;
+  flex: none;
+  align-self: flex-start;
+  align-items: center;
+  gap: 5px;
+  margin: 8px 16px 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--blue);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.add-friends__error {
+  flex: none;
+  margin: 0;
+  padding: 0 16px;
+  color: var(--red);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.add-friends__error:not(:empty) {
+  padding-top: 6px;
+}
+
+/* ---------- sections ---------- */
+
+.add-friends__scroll {
+  flex: 1;
+  min-height: 0;
+  padding: 4px 0 8px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.add-friends__section + .add-friends__section {
+  border-top: 1px solid var(--border);
+}
+
+.add-friends__heading {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 10px 16px 4px;
+  color: var(--text-2);
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+.add-friends__count {
+  display: grid;
+  place-items: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: var(--btn-neutral);
+  color: var(--text-2);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.add-friends__count.is-alert {
+  background: var(--red);
+  /* White on the brand red in both themes. */
+  color: #fff;
+}
+
+.add-friends:focus {
+  outline: none;
+}
+
+.add-friends__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.add-friends__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 6px 12px 6px 16px;
+}
+
+.add-friends__avatar {
+  flex: none;
+  line-height: 0;
+}
+
+.add-friends__name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 15px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.add-friends__actions {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+}
+
+.add-friends__empty {
+  padding: 10px 16px;
+  color: var(--text-2);
+  font-size: 13.5px;
+}
+
+/* ---------- row buttons: pills like the New Chat "Chat" button ---------- */
+
+.add-friends__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 30px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--btn-neutral);
+  color: var(--text);
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.add-friends__btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.add-friends__btn--add {
+  background: var(--yellow);
+  /* Black on the brand yellow in both themes. */
+  color: #000;
+}
+
+.add-friends__btn--accept {
+  background: var(--blue);
+  color: #fff;
+}
+
+.add-friends__btn--icon,
+.add-friends__btn--chat {
+  width: 30px;
+  padding: 0;
+  color: var(--text-2);
+}
+
+.add-friends__btn--done {
+  background: none;
+  color: var(--text-2);
+  font-weight: 600;
+  cursor: default;
+}
+
+.add-friends__close:focus-visible,
+.add-friends__notify:focus-visible,
+.add-friends__btn:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}

@@ -71,15 +71,15 @@ afterEach(() => {
 });
 
 describe('mobile chat list', () => {
-  it('shows the Chat title, filter chips and the add-friend badge', () => {
+  it('shows the Chat title, filter chips and the add-friend button without a badge when nothing is pending', () => {
     renderMobile();
     expect(screen.getByRole('heading', { name: 'Chat' })).toBeInTheDocument();
     const chips = screen.getByRole('group', { name: 'Filters' });
     for (const chip of ['My AI', 'Flashbacks', 'Groups', 'Near me', 'Best Friends']) {
       expect(within(chips).getByText(chip)).toBeInTheDocument();
     }
-    const addFriend = screen.getByRole('button', { name: /add friends/i });
-    expect(within(addFriend).getByText('5')).toBeInTheDocument();
+    const addFriend = screen.getByRole('button', { name: 'Add friends' });
+    expect(addFriend.querySelector('.m-round__badge')).toBeNull();
   });
 
   it('lists every chat with its status line', () => {
