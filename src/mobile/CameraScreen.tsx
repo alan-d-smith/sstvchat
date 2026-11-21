@@ -187,7 +187,7 @@ export function CameraScreen() {
 
       <div className="cam__capture">
         <ToolButton icon="memories" label="Memories" className="cam__btn--memories" />
-        <button type="button" className="cam__shutter" aria-label="Take snap" onClick={takeSnap} />
+        <button type="button" className="cam__shutter" aria-label="Take snap" onClick={() => takeSnap()} />
         <div className="cam__lenses" role="group" aria-label="Lenses">
           {LENSES.map((l) => (
             <button key={l.name} type="button" className="cam__lens" aria-label={l.name} style={{ background: l.bg }}>

@@ -16,7 +16,7 @@ export interface AppApi {
   pane: PaneMode; tab: MobileTab; overlay: MobileOverlay; capture: ImageData | null;
   transport: Transport; rxLabel: Record<Handle, string>;
   selectChat(id: string): void; setTab(t: MobileTab): void; setOverlay(o: MobileOverlay): void;
-  openCamera(to?: string): void; closePane(): void; takeSnap(): void;
+  openCamera(to?: string): void; closePane(): void; takeSnap(image?: ImageData): void;
   openSnap(chatId: string): void;
   sendText(chatId: string, text: string): void; sendSnap(chatIds: string[]): void;
   cancel(h: Handle): void;
@@ -256,9 +256,9 @@ export function AppProvider({ children, transport: given }: { children: ReactNod
         if (p?.mode === 'viewer') closeViewer(p);
         else dispatch({ type: 'patch', patch: { pane: null } });
       },
-      takeSnap: () => {
+      takeSnap: (image?: ImageData) => {
         const { pane, overlay } = stateRef.current;
-        const capture = makePlaceholderSnap();
+        const capture = image ?? makePlaceholderSnap();
         if (isMobileNow()) {
           const to = (overlay && 'to' in overlay ? overlay.to : undefined) ?? stateRef.current.cameraTo;
           dispatch({ type: 'patch', patch: { capture, overlay: { type: 'preview', to } } });

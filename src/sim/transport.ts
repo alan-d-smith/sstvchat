@@ -9,7 +9,13 @@ export interface TransportEvents {
   'tx:progress': (h: Handle, p: number) => void;
   'tx:done': (h: Handle) => void;
   'tx:cancelled': (h: Handle) => void;
-  'rx:start': (h: Handle, from: string, kind: 'snap' | 'text', mode: string) => void;
+  'rx:start': (
+    h: Handle,
+    from: string,
+    kind: 'snap' | 'text',
+    mode: string,
+    meta?: { fromName?: string; chatId?: string },
+  ) => void;
   'rx:row': (h: Handle, index: number, row: Uint8ClampedArray) => void;
   'rx:text-chunk': (h: Handle, textSoFar: string) => void;
   'rx:progress': (h: Handle, p: number) => void;

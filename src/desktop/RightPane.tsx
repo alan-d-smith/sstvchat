@@ -103,7 +103,7 @@ function Pane({ pane }: { pane: OpenPane }) {
                 <Icon name="chevron-down" size={20} />
               </button>
             </div>
-            <button type="button" className="rp-shutter" aria-label="Take snap" onClick={app.takeSnap} />
+            <button type="button" className="rp-shutter" aria-label="Take snap" onClick={() => app.takeSnap()} />
           </div>
         )}
 
