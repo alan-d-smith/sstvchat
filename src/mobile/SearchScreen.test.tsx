@@ -1,6 +1,8 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fixtureChats as chats, fixturePeople as people } from '../test/fixtures';
+import { fixtureChats, fixturePeople } from '../test/fixtures';
+import { ME } from '../types';
+import type { Chat, Person } from '../types';
 import type { AppApi } from '../state/store';
 import type { FriendsApi } from '../state/friendsContext';
 
@@ -10,6 +12,23 @@ vi.mock('../state/store', () => ({ useApp: () => app.current }));
 vi.mock('../state/friendsContext', () => ({ useFriends: () => friends.current }));
 
 import { SearchScreen } from './SearchScreen';
+
+/** Server group chats and their members, next to the fixture 1:1 chats. */
+const ROOMIES: Chat = {
+  id: 'g_roomies01', title: 'Roomies', isGroup: true, memberIds: ['sophie', 'ben', 'jen', ME],
+  status: { kind: 'opened', medium: 'chat', time: '1h' }, messages: [],
+};
+const STARFISH: Chat = {
+  id: 'g_starfish01', title: 'Starfish Squad ✨', isGroup: true, memberIds: ['jen', 'ben', 'priya', ME],
+  status: { kind: 'new-chat', medium: 'chat', time: '16m' }, messages: [],
+};
+const MEMBERS: Person[] = [
+  { id: 'sophie', name: 'Sophie', seed: 13, color: '#0FADFF' },
+  { id: 'ben', name: 'Ben', seed: 14, color: '#E83E6B' },
+  { id: 'jen', name: 'Jen', seed: 15, color: '#3CB371' },
+];
+const chats = [...fixtureChats.slice(0, 2), ROOMIES, STARFISH, ...fixtureChats.slice(2)];
+const people = [...fixturePeople, ...MEMBERS];
 
 const entry = (name: string) => ({ name, avatar: null });
 
@@ -80,7 +99,7 @@ describe('mobile search', () => {
     type('roo');
     fireEvent.click(within(section('Chats')).getByRole('button', { name: /Roomies/ }));
     expect(onClose).toHaveBeenCalled();
-    expect(app.current.setOverlay).toHaveBeenCalledWith({ type: 'conversation', chatId: 'roomies' });
+    expect(app.current.setOverlay).toHaveBeenCalledWith({ type: 'conversation', chatId: ROOMIES.id });
   });
 
   it('tapping a person opens your 1:1 chat with them, or starts one', () => {
@@ -109,7 +128,7 @@ describe('mobile search', () => {
 
     type('ben');
     expect(screen.getByRole('button', { name: 'Add Ben' })).toBeInTheDocument();
-    // A demo person without an account cannot be asked.
+    // Someone known here without an account cannot be asked.
     type('beatriz');
     expect(screen.queryByRole('button', { name: 'Add Beatriz M' })).toBeNull();
 

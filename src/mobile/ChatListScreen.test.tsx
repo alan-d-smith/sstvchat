@@ -5,7 +5,9 @@ import type { AppApi } from '../state/store';
 import { act } from '@testing-library/react';
 import { createMockTransport } from '../sim/transport';
 import { MobileApp } from './MobileApp';
-import { fixtures } from '../test/fixtures';
+import { fixtureChats, fixtures } from '../test/fixtures';
+import { ME } from '../types';
+import type { Chat, Person } from '../types';
 
 vi.mock('../media/placeholder', () => ({
   makePlaceholderSnap: () => new ImageData(240, 320),
@@ -38,11 +40,11 @@ function Probe() {
   return <output data-testid="probe" data-tab={tab} data-overlay={JSON.stringify(overlay)} />;
 }
 
-function renderMobile() {
+function renderMobile(start = fixtures()) {
   mockMedia(true);
   const transport = createMockTransport({ snapMs: 900, textMs: 150 });
   render(
-    <AppProvider {...fixtures()} transport={transport}>
+    <AppProvider {...start} transport={transport}>
       <MobileApp />
       <Probe />
     </AppProvider>,
@@ -170,7 +172,7 @@ describe('mobile chat list ⋯ menu', () => {
     expect(screen.getByRole('button', { name: 'More' })).toHaveAttribute('aria-expanded', 'true');
   });
 
-  it('New Chat and New Group Chat open the New Chat sheet', () => {
+  it('New Chat and New Group Chat open the New Chat sheet (as New Group Chat for a group)', () => {
     renderMobile();
     fireEvent.click(within(openMenu()).getByRole('button', { name: 'New Chat' }));
     expect(screen.queryByRole('dialog', { name: 'Chat options' })).toBeNull();
@@ -180,7 +182,7 @@ describe('mobile chat list ⋯ menu', () => {
 
     fireEvent.click(within(openMenu()).getByRole('button', { name: 'New Group Chat' }));
     expect(screen.queryByRole('dialog', { name: 'Chat options' })).toBeNull();
-    expect(screen.getByRole('dialog', { name: 'New Chat' })).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'New Group Chat' })).toBeInTheDocument();
   });
 
   it('Settings opens the microphone and camera settings', () => {
@@ -208,18 +210,29 @@ describe('mobile chat list ⋯ menu', () => {
 });
 
 describe('mobile search', () => {
+  /** A server group chat, and group members with no 1:1 chat here. */
+  const STARFISH: Chat = {
+    id: 'g_starfish01', title: 'Starfish Squad ✨', isGroup: true, memberIds: ['jen', 'ben', 'priya', ME],
+    status: { kind: 'new-chat', medium: 'chat', time: '16m' }, messages: [],
+  };
+  const MEMBERS: Record<string, Person> = {
+    ben: { id: 'ben', name: 'Ben', seed: 14, color: '#E83E6B' },
+    jen: { id: 'jen', name: 'Jen', seed: 15, color: '#3CB371' },
+  };
+  const withGroup = () => renderMobile(fixtures({ chats: [STARFISH, ...fixtureChats], people: MEMBERS }));
+
   it('the chat list search button opens search; picking a chat opens it', () => {
-    const s = renderMobile();
+    const s = withGroup();
     fireEvent.click(screen.getByRole('button', { name: 'Search' }));
     const search = screen.getByRole('dialog', { name: 'Search' });
     fireEvent.change(within(search).getByRole('searchbox'), { target: { value: 'starfish' } });
     fireEvent.click(within(search).getByRole('button', { name: /Starfish Squad/ }));
     expect(screen.queryByRole('dialog', { name: 'Search' })).toBeNull();
-    expect(s.overlay()).toEqual({ type: 'conversation', chatId: 'starfish' });
+    expect(s.overlay()).toEqual({ type: 'conversation', chatId: STARFISH.id });
   });
 
   it('picking someone without a chat starts a 1:1 chat with them', () => {
-    const s = renderMobile();
+    const s = withGroup();
     fireEvent.click(screen.getByRole('button', { name: 'Search' }));
     fireEvent.change(screen.getByRole('searchbox', { name: 'Search chats and people' }), { target: { value: 'ben' } });
     fireEvent.click(within(screen.getByRole('list', { name: 'People' })).getByRole('button', { name: /^Ben/ }));
