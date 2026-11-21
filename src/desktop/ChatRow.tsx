@@ -22,7 +22,7 @@ interface ChatRowProps {
 export function ChatRow({ chat, people, selected, onOpen }: ChatRowProps) {
   const faces = chatFaces(chat, people);
   const { kind, medium } = chat.status;
-  const unread = kind === 'new-snap' || kind === 'new-chat';
+  const unread = kind === 'new-snap' || kind === 'new-chat' || kind === 'new-group';
   const live = kind === 'receiving';
   const badge = chat.isGroup ? undefined : faces[0]?.badge;
 

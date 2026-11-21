@@ -63,6 +63,9 @@ function fakeApi(over: Partial<AppApi> = {}): AppApi {
     toggleRadioDetails: vi.fn(),
     decodeHint: false,
     dismissDecodeHint: vi.fn(),
+    syncGroups: vi.fn(() => []),
+    dropGroup: vi.fn(),
+    onGroupMiss: vi.fn(() => () => {}),
     ...over,
   };
 }

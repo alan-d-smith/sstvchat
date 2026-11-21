@@ -7,14 +7,16 @@ import {
   noticeText, notifyPermission, pollDelay, postFriend, saveMemory, saveNotices, systemNotify,
 } from './friends';
 import type { FriendAction, FriendEntry, FriendLists, FriendNotice, FriendResult, NotifyPermission } from './friends';
+import { createGroupRequest, groupAddedText, groupTitle, leaveGroupRequest, renameGroupRequest } from './groups';
+import type { Group, GroupResult } from './groups';
 
-/** The in-app toast: someone added you, or accepted your request. */
+/** The in-app toast: someone added you, accepted your request, or added you to a group. */
 export interface FriendToast {
   id: number;
-  kind: FriendNotice['kind'];
+  kind: FriendNotice['kind'] | 'group';
   who: FriendEntry[];
   text: string;
-  /** For 'accepted': the 1:1 chat that was made sure of. */
+  /** For 'accepted': the 1:1 chat that was made sure of; for 'group': the group chat. */
   chatId?: string;
 }
 
@@ -34,10 +36,17 @@ export interface FriendsApi extends FriendLists {
   notices: FriendNotice[]; unread: number;
   toast: FriendToast | null; dismissToast(): void;
   permission: NotifyPermission; askPermission(): Promise<void>;
+  /** POST /api/groups create with these usernames (you are added); the chat appears at once. */
+  createGroup(members: string[], title?: string): Promise<GroupResult>;
+  /** Leaves a group (POST /api/groups leave); its chat goes at once. */
+  leaveGroup(id: string): Promise<GroupResult>;
+  /** Renames a group for everyone in it ('' shows the members' names). */
+  renameGroup(id: string, title: string): Promise<GroupResult>;
 }
 
 const noop = () => {};
 const offline = async (): Promise<FriendResult> => ({ ok: false, status: 0 });
+const groupsOffline = async (): Promise<GroupResult> => ({ ok: false, status: 0 });
 
 /** Used outside a provider (isolated component tests): nothing pending, actions fail. */
 const INERT: FriendsApi = {
@@ -47,6 +56,7 @@ const INERT: FriendsApi = {
   noticesOpen: false, openNotices: noop, closeNotices: noop, notices: [], unread: 0,
   toast: null, dismissToast: noop,
   permission: 'unsupported', askPermission: async () => {},
+  createGroup: groupsOffline, leaveGroup: groupsOffline, renameGroup: groupsOffline,
 };
 
 const Ctx = createContext<FriendsApi>(INERT);
@@ -75,13 +85,15 @@ const withEntry = (list: FriendEntry[], e: FriendEntry) =>
   list.some((x) => x.name === e.name) ? list : [...list, e].sort((a, b) => a.name.localeCompare(b.name));
 
 /**
- * Friend requests for the signed-in user: polls GET /api/friends (3 s visible, 20 s hidden,
- * 15 s after repeated errors, never two at once; also on focus, on becoming visible and right
- * after every action), announces new requests and accepted ones (toast, system notification,
- * the bell's list) and makes sure a 1:1 chat exists with every new friend.
+ * Friend requests and group chats for the signed-in user: polls GET /api/friends (3 s visible,
+ * 20 s hidden, 15 s after repeated errors, never two at once; also on focus, on becoming visible,
+ * right after every action and when a packet names an unknown group), announces new requests,
+ * accepted ones and groups you were added to (toast, system notification, the bell's list for
+ * requests), makes sure a 1:1 chat exists with every new friend and keeps the group chats in step
+ * with the server.
  */
 export function FriendsProvider({ children }: { children: ReactNode }) {
-  const { self, startChat } = useApp();
+  const { self, startChat, people, syncGroups, dropGroup, onGroupMiss } = useApp();
   const user = self?.name ?? null;
   const [lists, setLists] = useState<FriendLists>(NO_FRIENDS);
   const [loaded, setLoaded] = useState(false);
@@ -95,6 +107,10 @@ export function FriendsProvider({ children }: { children: ReactNode }) {
   userRef.current = user;
   const startChatRef = useRef(startChat);
   startChatRef.current = startChat;
+  const syncGroupsRef = useRef(syncGroups);
+  syncGroupsRef.current = syncGroups;
+  const peopleRef = useRef(people);
+  peopleRef.current = people;
   const inFlight = useRef(false);
   /** An action finished while a poll was in flight: poll again once it lands. */
   const again = useRef(false);
@@ -117,7 +133,7 @@ export function FriendsProvider({ children }: { children: ReactNode }) {
     setToast({ ...t, id: ++toastSeq.current });
   }, []);
 
-  const apply = useCallback((owner: string, next: FriendLists) => {
+  const apply = useCallback((owner: string, next: FriendLists, groups?: Group[]) => {
     const news = friendNews(loadMemory(owner), next);
     saveMemory(owner, news.memory);
     setLists(next);
@@ -137,6 +153,16 @@ export function FriendsProvider({ children }: { children: ReactNode }) {
       showToast({ kind: 'request', who: news.added, text });
       systemNotify(text, () => setAddOpen(true));
     }
+    if (groups) {
+      const added = syncGroupsRef.current(groups, true);
+      const last = added[added.length - 1];
+      if (last) {
+        const text = groupAddedText(last.createdBy, groupTitle(last, owner));
+        const by = { name: last.createdBy, avatar: peopleRef.current[last.createdBy]?.seed ?? null };
+        showToast({ kind: 'group', who: [by], text, chatId: last.id });
+        systemNotify(text);
+      }
+    }
   }, [pushNotices, ensureChat, showToast]);
 
   const refresh = useCallback(async (): Promise<void> => {
@@ -146,9 +172,9 @@ export function FriendsProvider({ children }: { children: ReactNode }) {
     inFlight.current = true;
     const seq = actions.current;
     try {
-      const next = await fetchFriends(owner, deviceToken());
+      const { groups, ...next } = await fetchFriends(owner, deviceToken());
       errors.current = 0;
-      if (userRef.current === owner && seq === actions.current) apply(owner, next);
+      if (userRef.current === owner && seq === actions.current) apply(owner, next, groups);
     } catch {
       errors.current++;
     } finally {
@@ -165,6 +191,11 @@ export function FriendsProvider({ children }: { children: ReactNode }) {
     if (inFlight.current) again.current = true;
     else wake.current();
   }, []);
+
+  // A packet named a group we do not know yet: ask the server now.
+  useEffect(() => onGroupMiss(() => {
+    if (userRef.current) refreshAfterAction();
+  }), [onGroupMiss, refreshAfterAction]);
 
   // Switching user: start from nothing, with that user's notification list.
   useEffect(() => {
@@ -242,6 +273,33 @@ export function FriendsProvider({ children }: { children: ReactNode }) {
     return r;
   }, [lists, ensureChat, refreshAfterAction]);
 
+  /** A group action: the outcome shows at once, and polls sent before it are dropped. */
+  const groupAct = useCallback(async (run: (owner: string, token: string) => Promise<GroupResult>, done: (r: GroupResult) => void) => {
+    const owner = userRef.current;
+    if (!owner) return { ok: false, status: 401 } as GroupResult;
+    const r = await run(owner, deviceToken());
+    actions.current++;
+    if (userRef.current === owner) done(r);
+    refreshAfterAction();
+    return r;
+  }, [refreshAfterAction]);
+
+  const createGroup = useCallback((members: string[], title?: string) => groupAct(
+    (owner, token) => createGroupRequest(owner, token, members, title),
+    (r) => { if (r.ok && r.group) syncGroups([r.group], false); },
+  ), [groupAct, syncGroups]);
+
+  const leaveGroup = useCallback((id: string) => groupAct(
+    (owner, token) => leaveGroupRequest(owner, token, id),
+    // 404: already gone on the server.
+    (r) => { if (r.ok || r.status === 404) dropGroup(id); },
+  ), [groupAct, dropGroup]);
+
+  const renameGroup = useCallback((id: string, title: string) => groupAct(
+    (owner, token) => renameGroupRequest(owner, token, id, title),
+    (r) => { if (r.ok && r.group) syncGroups([r.group], false); },
+  ), [groupAct, syncGroups]);
+
   const askPermission = useCallback(async () => {
     rememberAsked();
     setPermission(await askNotifyPermission());
@@ -282,7 +340,10 @@ export function FriendsProvider({ children }: { children: ReactNode }) {
     dismissToast: () => setToast(null),
     permission,
     askPermission,
-  }), [lists, loaded, act, refresh, addOpen, noticesOpen, notices, toast, permission, askPermission, user]);
+    createGroup,
+    leaveGroup,
+    renameGroup,
+  }), [lists, loaded, act, refresh, addOpen, noticesOpen, notices, toast, permission, askPermission, user, createGroup, leaveGroup, renameGroup]);
 
   return <Ctx.Provider value={api}>{children}</Ctx.Provider>;
 }

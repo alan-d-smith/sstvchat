@@ -27,6 +27,8 @@ function look(s: ChatStatus): Look {
       return { word: 'New Snap', icon: box, filled: true, iconColor: medium, wordColor: medium, strong: true };
     case 'new-chat':
       return { word: 'New Chat', icon: box, filled: true, iconColor: medium, wordColor: medium, strong: true };
+    case 'new-group':
+      return { word: 'New Group', icon: 'bubble', filled: true, iconColor: medium, wordColor: medium, strong: true };
     case 'transmitting':
       return { word: 'Transmitting', icon: 'arrow', filled: true, iconColor: medium, wordColor: medium, strong: true, anim: 'pulse' };
     case 'receiving': {

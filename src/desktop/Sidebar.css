@@ -319,7 +319,8 @@
 
 /* On desktop the reference shows unread items by the right-side indicator, not a leading icon. */
 .sidebar .chat-row .status-line[data-kind='new-snap'] .status-line__icon,
-.sidebar .chat-row .status-line[data-kind='new-chat'] .status-line__icon {
+.sidebar .chat-row .status-line[data-kind='new-chat'] .status-line__icon,
+.sidebar .chat-row .status-line[data-kind='new-group'] .status-line__icon {
   display: none;
 }
 

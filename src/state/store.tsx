@@ -15,6 +15,8 @@ import type { RadioDiag } from '../audio/diagnostics';
 import { NAME_RE, claimName, fetchUsers, normalizeName, saveAccount, savedAccount, seedFor } from './account';
 import type { Account, ClaimResult, DirectoryUser } from './account';
 import { decodeHintDismissedRecently, loadChats, loadHeard, loadPeople, saveChats, saveDecodeHintDismissed, saveHeard, savePeople } from './persist';
+import { groupTitle, isGroupId } from './groups';
+import type { Group } from './groups';
 import { clearSnapImages, deleteSnapImage, loadSnapImages, newImageId, saveSnapImage } from './snapImages';
 
 export type { Account, ClaimResult } from './account';
@@ -49,6 +51,16 @@ export interface AppApi {
   startChat(username: string): string | null;
   /** Re-reads the claimed usernames (GET /api/users) into `people`. */
   refreshPeople(): void;
+  /**
+   * Server group chats -> local chats: new ones go on top, titles and members follow the server.
+   * `complete` (a poll's full list) also removes group chats that are not listed. Returns the
+   * groups that are new here and were made by someone else (to announce).
+   */
+  syncGroups(groups: Group[], complete: boolean): Group[];
+  /** Removes a group chat at once (after leaving it). */
+  dropGroup(id: string): void;
+  /** Subscribes to "a packet named a group this device does not know (yet)": poll the server now. */
+  onGroupMiss(fn: () => void): () => void;
   /** Portrait 240×320 image for a receive handle (rows so far) or a saved snap. */
   snapBuffer(h: Handle): ImageData | undefined;
   /** What the radio diagnostics panel inspects; null with the mock transport (tests, no Web Audio). */
@@ -121,7 +133,13 @@ function reducer(s: State, a: Action): State {
       });
       return { ...s, ...closed, chats };
     }
-    case 'reset': return fresh(mockChats, {});
+    case 'reset': {
+      // Server group chats stay (emptied): who is in a group is not demo data.
+      const groups = s.chats.filter((c) => c.isGroup).map((c): Chat => ({
+        ...c, messages: [], hasIncomingSnap: false, status: { kind: 'tap-to-chat', medium: 'chat' },
+      }));
+      return fresh([...groups, ...mockChats], {});
+    }
   }
 }
 
@@ -137,6 +155,12 @@ interface RxMeta {
   live: boolean; rows: number; added: boolean;
 }
 interface RxTarget { chatId: string; msgId?: string; viewer: boolean }
+/**
+ * A message that named a group this device did not know yet, filed in the sender's 1:1 chat for
+ * now; it moves into the group when a groups refresh brings it (or stays put after MISFILED_MS).
+ */
+interface Misfiled { handle: Handle; groupId: string; from: string; chatId: string; msgId: string; created: boolean; at: number }
+const MISFILED_MS = 30_000;
 
 const isMobileNow = () => window.matchMedia('(max-width: 767px)').matches;
 const clock = (ms: number) => `${Math.floor(ms / 60000)}:${String(Math.floor(ms / 1000) % 60).padStart(2, '0')}`;
@@ -157,6 +181,29 @@ function blackFrame(): ImageData {
   const img = new ImageData(240, 320);
   for (let i = 3; i < img.data.length; i += 4) img.data[i] = 255;
   return img;
+}
+
+/** The chat for a server group (keeping `prev`'s messages and status). */
+function groupChat(g: Group, self: string, prev?: Chat): Chat {
+  return {
+    ...(prev ?? {
+      messages: [],
+      status: g.createdBy === self ? { kind: 'tap-to-chat', medium: 'chat' } : { kind: 'new-group', medium: 'chat', time: 'now' },
+    }),
+    id: g.id, title: groupTitle(g, self), isGroup: true,
+    memberIds: [...g.members.filter((m) => m !== self), ME],
+  };
+}
+
+/** The new chat list, with selection, pane and overlay let go of chats that are gone. */
+function withChats(s: State, chats: Chat[]): Partial<State> {
+  const ids = new Set(chats.map((c) => c.id));
+  const gone = (id: string | null | undefined) => id != null && !ids.has(id);
+  const patch: Partial<State> = { chats };
+  if (gone(s.selectedChatId)) patch.selectedChatId = null;
+  if (s.overlay && 'chatId' in s.overlay && gone(s.overlay.chatId)) patch.overlay = null;
+  if (s.pane && 'chatId' in s.pane && gone(s.pane.chatId)) patch.pane = null;
+  return patch;
 }
 
 /** Person ids to address for these chats: members minus this device (ME and its own id). */
@@ -206,6 +253,8 @@ export function AppProvider({ children, transport: given }: { children: ReactNod
   const txMeta = useRef(new Map<Handle, TxMeta>());
   const rxMeta = useRef(new Map<Handle, RxMeta>());
   const pendingTx = useRef<TxMeta | null>(null);
+  const misfiled = useRef<Misfiled[]>([]);
+  const groupMiss = useRef(new Set<() => void>());
   const pendingRx = useRef<RxTarget | null>(null);
   /** Live receive canvases, per handle. */
   const snapBufs = useRef(new Map<Handle, ImageData>());
@@ -324,16 +373,131 @@ export function AppProvider({ children, transport: given }: { children: ReactNod
     return chat;
   }, []);
 
-  /** Where an over-the-air message goes: its group chat, else the 1:1 chat with the sender (created if new). */
-  const routeIncoming = useCallback((from: string, meta: { fromName?: string; chatId?: string }): string => {
+  /**
+   * Where an over-the-air message goes: the chat it names when the sender is in it, else the 1:1
+   * chat with the sender (created if new). `missedGroup`: it named a group we do not know (yet).
+   */
+  const routeIncoming = useCallback((from: string, meta: { fromName?: string; chatId?: string }) => {
     const chats = stateRef.current.chats;
-    // A 1:1 chat id names the *other* person, so on the receiving side it is only trusted when the sender is in it.
+    // A group is trusted for its members. A 1:1 chat id names the *other* person, so on the
+    // receiving side it is only trusted when the sender is in it.
     const named = meta.chatId ? chats.find((c) => c.id === meta.chatId) : undefined;
-    if (named && (named.isGroup || named.memberIds.includes(from))) return named.id;
+    if (named && named.memberIds.includes(from)) return { chatId: named.id, created: false };
+    const missedGroup = isGroupId(meta.chatId) ? meta.chatId : undefined;
     const direct = chats.find((c) => !c.isGroup && c.memberIds.includes(from));
-    if (direct) return direct.id;
-    return addDirectChat(from, meta.fromName ?? from).id;
+    if (direct) return { chatId: direct.id, missedGroup, created: false };
+    return { chatId: addDirectChat(from, meta.fromName ?? from).id, missedGroup, created: true };
   }, [addDirectChat]);
+
+  /** Moves a misfiled message (and its receive, if still running) into its group chat. */
+  const fileIntoGroup = useCallback((e: Misfiled) => {
+    const s = stateRef.current;
+    const src = s.chats.find((c) => c.id === e.chatId);
+    const dest = s.chats.find((c) => c.id === e.groupId);
+    const msg = src?.messages.find((m) => m.id === e.msgId);
+    if (!src || !dest || !msg) return;
+    const rx = rxMeta.current.get(e.handle);
+    const following = rx?.chatId === e.chatId && rx.msgId === e.msgId;
+    const prev = following ? rx.prev : src.status;
+    if (following) {
+      rx.chatId = e.groupId;
+      rx.prev = dest.status;
+    }
+    const unopened = (messages: Message[]) => messages.some((m) => isIncomingSnap(m) && !m.opened);
+    const chats = s.chats.flatMap((c): Chat[] => {
+      if (c.id === e.chatId) {
+        const messages = c.messages.filter((m) => m.id !== e.msgId);
+        // A chat made only for this message goes again.
+        if (e.created && messages.length === 0) return [];
+        return [{ ...c, messages, status: prev, hasIncomingSnap: unopened(messages) }];
+      }
+      if (c.id === e.groupId) {
+        const messages = [...c.messages, msg];
+        return [{ ...c, messages, status: src.status, hasIncomingSnap: unopened(messages) }];
+      }
+      return [c];
+    });
+    // A viewer already showing this receive follows it.
+    const follow = <T extends PaneMode | MobileOverlay>(v: T): T =>
+      (v && 'handle' in v && v.handle === e.handle ? { ...v, chatId: e.groupId } : v);
+    const moved: State = { ...s, pane: follow(s.pane), overlay: follow(s.overlay) };
+    const patch = { pane: moved.pane, overlay: moved.overlay, ...withChats(moved, chats) };
+    dispatch({ type: 'patch', patch });
+    stateRef.current = { ...s, ...patch };
+  }, []);
+
+  const syncGroups = useCallback((groups: Group[], complete: boolean): Group[] => {
+    const me = selfRef.current?.id;
+    if (!me) return [];
+    const s = stateRef.current;
+    const listed = new Map(groups.filter((g) => g.members.includes(me)).map((g) => [g.id, g]));
+    let changed = false;
+
+    // Faces and names for members met nowhere else, kept like people met over the air.
+    const extraPeople = { ...s.extraPeople };
+    for (const g of listed.values()) {
+      for (const m of g.members) {
+        if (m === me || MOCK_PEOPLE[m] || extraPeople[m]) continue;
+        extraPeople[m] = directoryRef.current[m] ?? personFor(m, m);
+        changed = true;
+      }
+    }
+
+    const kept: Chat[] = [];
+    for (const c of s.chats) {
+      const g = listed.get(c.id);
+      if (g) {
+        const next = groupChat(g, me, c);
+        if (next.title !== c.title || !c.isGroup || next.memberIds.join() !== c.memberIds.join()) changed = true;
+        kept.push(next);
+      } else if (complete && c.isGroup) {
+        changed = true; // left, or gone from the server
+      } else {
+        kept.push(c);
+      }
+    }
+    const added: Group[] = [];
+    const fresh: Chat[] = [];
+    // The server lists oldest first: each newer one goes above it.
+    for (const g of listed.values()) {
+      if (s.chats.some((c) => c.id === g.id)) continue;
+      fresh.unshift(groupChat(g, me));
+      if (g.createdBy !== me) added.push(g);
+      changed = true;
+    }
+    if (changed) {
+      const patch = { ...withChats(s, [...fresh, ...kept]), extraPeople };
+      dispatch({ type: 'patch', patch });
+      stateRef.current = { ...s, ...patch };
+    }
+
+    // Messages that named a group before we knew it.
+    const now = Date.now();
+    misfiled.current = misfiled.current.filter((e) => {
+      const group = stateRef.current.chats.find((c) => c.id === e.groupId && c.isGroup);
+      if (group?.memberIds.includes(e.from)) {
+        fileIntoGroup(e);
+        return false;
+      }
+      return now - e.at < MISFILED_MS;
+    });
+    return added;
+  }, [fileIntoGroup]);
+
+  const dropGroup = useCallback((id: string) => {
+    const s = stateRef.current;
+    if (!s.chats.some((c) => c.id === id && c.isGroup)) return;
+    const patch = withChats(s, s.chats.filter((c) => c.id !== id));
+    dispatch({ type: 'patch', patch });
+    stateRef.current = { ...s, ...patch };
+  }, []);
+
+  const onGroupMiss = useCallback((fn: () => void) => {
+    groupMiss.current.add(fn);
+    return () => {
+      groupMiss.current.delete(fn);
+    };
+  }, []);
 
   useEffect(() => {
     const tx = (h: Handle) => {
@@ -389,7 +553,12 @@ export function AppProvider({ children, transport: given }: { children: ReactNod
         const known = rxMeta.current.get(h);
         const target = known ?? pendingRx.current;
         let chatId = target?.chatId;
-        if (!chatId && meta) chatId = routeIncoming(from, meta);
+        let missed: { groupId: string; created: boolean } | undefined;
+        if (!chatId && meta) {
+          const route = routeIncoming(from, meta);
+          chatId = route.chatId;
+          if (route.missedGroup) missed = { groupId: route.missedGroup, created: route.created };
+        }
         chatId ??= findChat(from)?.id;
         const chat = chatId ? stateRef.current.chats.find((c) => c.id === chatId) : undefined;
         if (!chatId || !chat) return;
@@ -423,6 +592,13 @@ export function AppProvider({ children, transport: given }: { children: ReactNod
             status: { kind: 'receiving', medium: 'chat', progress: meta ? undefined : 0 },
             messages: [...c.messages, { id: msgId, senderId: from, type: 'text', text: '', state: 'receiving' }],
           }));
+        }
+        if (missed) {
+          // Filed with the sender for now; ask the server about the group straight away.
+          if (m.msgId && (kind === 'text' || m.added)) {
+            misfiled.current.push({ handle: h, groupId: missed.groupId, from, chatId, msgId: m.msgId, created: missed.created, at: Date.now() });
+          }
+          for (const fn of [...groupMiss.current]) fn();
         }
       }),
       transport.on('rx:row', (h, index, row) => {
@@ -627,7 +803,15 @@ export function AppProvider({ children, transport: given }: { children: ReactNod
           ...c, messages: [...c.messages, { id: nextId('tx'), senderId: ME, type: 'snap', opened: false }],
         })));
         dispatch({ type: 'patch', patch: { capture: null, pane: null, overlay: null, tab: 'chat', cameraTo: undefined } });
-        startTx({ kind: 'snap', chatIds: [...chatIds] }, () => transport.sendSnap(chatIds, image));
+        // A packet names one chat, so each group gets its own transmission (its members file it
+        // in the group); the 1:1 chats share one.
+        const chats = stateRef.current.chats;
+        const groups = chatIds.filter((id) => chats.find((c) => c.id === id)?.isGroup);
+        const direct = chatIds.filter((id) => !groups.includes(id));
+        const batches = chatIds.length > 1 && groups.length ? [...groups.map((g) => [g]), direct] : [chatIds];
+        for (const ids of batches.filter((b) => b.length)) {
+          startTx({ kind: 'snap', chatIds: [...ids] }, () => transport.sendSnap(ids, image));
+        }
       },
       cancel: (h) => transport.cancel(h),
       deleteMessage: (chatId, messageId) => {
@@ -682,9 +866,12 @@ export function AppProvider({ children, transport: given }: { children: ReactNod
       toggleRadioDetails: (open) => setRadioDetailsOpen((o) => open ?? !o),
       decodeHint,
       dismissDecodeHint,
+      syncGroups,
+      dropGroup,
+      onGroupMiss,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state, transport, startRx, startTx, closeViewer, patchChat, self, accountOpen, radio, enableRadio, claim, setAvatar, snapBuffer, addDirectChat, people, refreshDirectory, engine, diag, radioDetailsOpen, decodeHint, dismissDecodeHint]);
+  }, [state, transport, startRx, startTx, closeViewer, patchChat, self, accountOpen, radio, enableRadio, claim, setAvatar, snapBuffer, addDirectChat, people, refreshDirectory, engine, diag, radioDetailsOpen, decodeHint, dismissDecodeHint, syncGroups, dropGroup, onGroupMiss]);
 
   return <Ctx.Provider value={api}>{children}</Ctx.Provider>;
 }

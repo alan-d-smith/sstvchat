@@ -64,7 +64,8 @@
   cursor: pointer;
 }
 
-.friend-toast[data-kind='accepted'] .friend-toast__view {
+.friend-toast[data-kind='accepted'] .friend-toast__view,
+.friend-toast[data-kind='group'] .friend-toast__view {
   background: var(--blue);
   color: #fff;
 }

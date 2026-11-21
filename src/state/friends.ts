@@ -4,6 +4,8 @@
 
 import type { FriendAction, FriendEntry, FriendLists, FriendState } from '../../api/_friends';
 import { NAME_RE } from '../../api/_accounts';
+import { parseGroups } from './groups';
+import type { Group } from './groups';
 
 export type { FriendAction, FriendEntry, FriendLists, FriendState } from '../../api/_friends';
 
@@ -34,8 +36,11 @@ function entries(v: unknown): FriendEntry[] {
     .map((e) => ({ name: e.name, avatar: Number.isInteger(e.avatar) ? e.avatar : null }));
 }
 
+/** One poll: the friend lists, plus the user's group chats when the server sent them. */
+export type FriendsPoll = FriendLists & { groups?: Group[] };
+
 /** GET /api/friends. Throws FriendsError (status 0 when the server cannot be reached). */
-export async function fetchFriends(name: string, token: string): Promise<FriendLists> {
+export async function fetchFriends(name: string, token: string): Promise<FriendsPoll> {
   let res: Response;
   try {
     const q = new URLSearchParams({ name, token });
@@ -46,7 +51,10 @@ export async function fetchFriends(name: string, token: string): Promise<FriendL
   if (!res.ok) throw new FriendsError(res.status);
   const body = (await res.json().catch(() => null)) as Record<string, unknown> | null;
   if (!body || typeof body !== 'object') throw new FriendsError(500);
-  return { incoming: entries(body.incoming), outgoing: entries(body.outgoing), friends: entries(body.friends) };
+  return {
+    incoming: entries(body.incoming), outgoing: entries(body.outgoing), friends: entries(body.friends),
+    groups: parseGroups(body.groups),
+  };
 }
 
 export type FriendResult = { ok: true; state: FriendState } | { ok: false; status: number };

@@ -7,13 +7,17 @@ import { Avatar } from './Avatar';
 import { Icon } from './Icon';
 import './FriendsLayer.css';
 
-/** "alan added you · View": shown for a few seconds when a request comes in or is accepted. */
+/**
+ * "alan added you · View": shown for a few seconds when a request comes in or is accepted, or
+ * someone adds you to a group ("alan added you to Roomies · Chat").
+ */
 export function FriendToast({ onChat }: { onChat(chatId: string): void }) {
   const { toast, dismissToast, openAdd } = useFriends();
+  const toChat = toast && toast.kind !== 'request' && toast.chatId;
   const view = () => {
     if (!toast) return;
     dismissToast();
-    if (toast.kind === 'accepted' && toast.chatId) onChat(toast.chatId);
+    if (toChat) onChat(toChat);
     else openAdd();
   };
   // The live region stays mounted so screen readers announce what appears in it.
@@ -26,7 +30,7 @@ export function FriendToast({ onChat }: { onChat(chatId: string): void }) {
           </span>
           <span className="friend-toast__text">{toast.text}</span>
           <button type="button" className="friend-toast__view" onClick={view}>
-            {toast.kind === 'accepted' && toast.chatId ? 'Chat' : 'View'}
+            {toChat ? 'Chat' : 'View'}
           </button>
           <button type="button" className="friend-toast__close" aria-label="Dismiss" onClick={dismissToast}>
             <Icon name="close" size={14} />

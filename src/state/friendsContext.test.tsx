@@ -3,12 +3,16 @@ import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { claim, memoryStore, users } from '../../api/_accounts';
 import type { Passwords } from '../../api/_accounts';
 import { friendAction, friendLists } from '../../api/_friends';
+import { groupAction } from '../../api/_groups';
+import type { Group } from '../../api/_groups';
 import { createMockTransport } from '../sim/transport';
+import type { Transport, TransportEvents } from '../sim/transport';
 import { AppProvider, useApp } from './store';
 import type { AppApi } from './store';
 import { FriendsProvider, TOAST_MS, useFriends } from './friendsContext';
 import type { FriendsApi } from './friendsContext';
 import { FriendsLayer } from '../components/FriendsLayer';
+import { ME } from '../types';
 import { ChatListScreen } from '../mobile/ChatListScreen';
 import { Sidebar } from '../desktop/Sidebar';
 
@@ -42,6 +46,10 @@ function server() {
       const r = await friendAction(store, JSON.parse(String(init?.body)));
       return reply(r.status, r.body);
     }
+    if (url === '/api/groups' && init?.method === 'POST') {
+      const r = await groupAction(store, JSON.parse(String(init?.body)));
+      return reply(r.status, r.body);
+    }
     if (url === '/api/users') {
       const r = await users(store);
       return reply(r.status, r.body);
@@ -55,6 +63,9 @@ function server() {
     join: (name: string, avatar = 1) => claim(store, plain, { name, token: name === 'alan' ? MY_TOKEN : tok(name), avatar }),
     /** `name` does `action` to `other`, as if from their own device. */
     act: (name: string, action: string, other: string) => friendAction(store, { action, name, token: tok(name), other }),
+    /** `name` makes a group, as if from their own device. */
+    group: async (name: string, members: string[], title?: string) =>
+      (await groupAction(store, { action: 'create', name, token: tok(name), members, title })).body as Group,
     setDown: (v: boolean) => { down = v; },
     holdPolls: (v: boolean) => { hold = v; },
     releasePoll: () => { release?.(); release = null; },
@@ -71,9 +82,9 @@ function Probe() {
   return null;
 }
 
-function mount(ui: React.ReactNode, mobile = true) {
+function mount(ui: React.ReactNode, mobile = true, transport: Transport = createMockTransport({ snapMs: 900, textMs: 150 })) {
   return render(
-    <AppProvider transport={createMockTransport({ snapMs: 900, textMs: 150 })}>
+    <AppProvider transport={transport}>
       <FriendsProvider>
         {ui}
         <FriendsLayer mobile={mobile} />
@@ -361,5 +372,89 @@ describe('notifications', () => {
     fireEvent.click(within(list).getByRole('button', { name: 'Close' }));
     expect(bell()).toHaveAccessibleName('Notifications');
     expect(bell().querySelector('.m-round__dot')).toBeNull();
+  });
+});
+
+describe('group chats', () => {
+  it('adds a group someone put you in, with a toast whose Chat opens it', async () => {
+    const s = server();
+    for (const n of ['alan', 'bea', 'cy']) await s.join(n);
+    mount(<ChatListScreen />);
+    await tick();
+    const g = await s.group('bea', ['alan', 'cy'], 'Roomies');
+    await tick(3_000);
+    expect(app().chats[0]).toMatchObject({ id: g.id, title: 'Roomies', isGroup: true, memberIds: ['bea', 'cy', ME] });
+    expect(screen.getByText('Roomies', { selector: '.m-row__name' }).closest('li')).toHaveTextContent('New Group');
+    const toast = screen.getByRole('status');
+    expect(toast).toHaveTextContent('bea added you to Roomies');
+    // Later polls do not repeat it.
+    fireEvent.click(within(toast).getByRole('button', { name: 'Chat' }));
+    expect(app().overlay).toEqual({ type: 'conversation', chatId: g.id });
+    await tick(3_000);
+    expect(screen.queryByText(/added you to/)).toBeNull();
+  });
+
+  it('creates a group through the server and opens nothing twice; leaving removes it everywhere', async () => {
+    const s = server();
+    for (const n of ['alan', 'bea', 'cy']) await s.join(n);
+    mount(<ChatListScreen />);
+    await tick();
+    let r: Awaited<ReturnType<FriendsApi['createGroup']>> | undefined;
+    await act(async () => { r = await friends().createGroup(['bea', 'cy'], 'Trip'); });
+    expect(r).toMatchObject({ ok: true, group: { title: 'Trip', members: ['alan', 'bea', 'cy'], createdBy: 'alan' } });
+    const id = (r as { group: Group }).group.id;
+    expect(app().chats.filter((c) => c.id === id)).toHaveLength(1);
+    expect(app().chats[0]).toMatchObject({ id, status: { kind: 'tap-to-chat' } });
+    await tick(3_000);
+    expect(app().chats.filter((c) => c.id === id)).toHaveLength(1);
+    expect(screen.queryByText(/added you to/)).toBeNull(); // our own group is not news
+
+    await act(async () => { await friends().leaveGroup(id); });
+    expect(app().chats.some((c) => c.id === id)).toBe(false);
+    await tick(3_000);
+    expect(app().chats.some((c) => c.id === id)).toBe(false);
+    expect((await friendLists(s.store, { name: 'bea', token: tok('bea') })).body).toMatchObject({ groups: [{ id, members: ['bea', 'cy'] }] });
+  });
+
+  it('reports an unknown member without making a chat', async () => {
+    const s = server();
+    for (const n of ['alan', 'bea']) await s.join(n);
+    mount(<ChatListScreen />);
+    await tick();
+    const before = app().chats.length;
+    let r: Awaited<ReturnType<FriendsApi['createGroup']>> | undefined;
+    await act(async () => { r = await friends().createGroup(['bea', 'ghost']); });
+    expect(r).toMatchObject({ ok: false, status: 404, names: ['ghost'] });
+    expect(app().chats).toHaveLength(before);
+  });
+
+  it('polls at once when a packet names a group it does not know, then files it there', async () => {
+    const s = server();
+    for (const n of ['alan', 'bea', 'cy']) await s.join(n);
+    type AnyFn = (...a: unknown[]) => void;
+    const listeners = new Map<string, Set<AnyFn>>();
+    const transport: Transport = {
+      ...createMockTransport(),
+      on(event, fn) {
+        const set = listeners.get(event) ?? new Set<AnyFn>();
+        listeners.set(event, set);
+        set.add(fn as unknown as AnyFn);
+        return () => set.delete(fn as unknown as AnyFn);
+      },
+    };
+    const emit = <K extends keyof TransportEvents>(event: K, ...args: Parameters<TransportEvents[K]>) =>
+      act(() => { for (const fn of [...(listeners.get(event) ?? [])]) fn(...args); });
+    mount(<ChatListScreen />, true, transport);
+    await tick();
+    const g = await s.group('bea', ['alan', 'cy'], 'Roomies');
+    const polls = s.friendGets.length;
+    emit('rx:start', 'arx-1', 'bea', 'text', 'two-tone', { chatId: g.id });
+    await tick();
+    expect(s.friendGets.length).toBe(polls + 1); // no 3 s wait
+    emit('rx:text-chunk', 'arx-1', 'quick, before the poll');
+    emit('rx:done', 'arx-1');
+    const group = app().chats.find((c) => c.id === g.id)!;
+    expect(group.messages.at(-1)).toMatchObject({ senderId: 'bea', text: 'quick, before the poll' });
+    expect(app().chats.some((c) => !c.isGroup && c.memberIds.includes('bea'))).toBe(false);
   });
 });
