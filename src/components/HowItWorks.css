@@ -1,0 +1,817 @@
+/*
+ * How it works: a card over a scrim (full screen on phones), two columns on wide screens.
+ * App colours come from tokens; the devices' shells and decks are neutral greys.
+ */
+
+.hiw-layer {
+  --hiw-shell: #2e3238;
+  --hiw-shell-edge: #2e3238;
+  --hiw-deck: #dcdfe3;
+  --hiw-lip: #b8bdc4;
+  --hiw-keys: #c7ccd2;
+  --hiw-grille: #7d848d;
+  --hiw-wave-edge: rgb(22 25 28 / 0.85);
+
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  overflow-y: auto;
+  /* Scrim: black in both themes. */
+  background: rgb(0 0 0 / 0.5);
+  color: var(--text);
+  font-family: var(--font);
+}
+
+/* Reopened over the name screen / profile sheet. */
+.hiw-layer--modal {
+  z-index: 1001;
+}
+
+@media (prefers-color-scheme: dark) {
+  .hiw-layer {
+    --hiw-shell: #34383f;
+    --hiw-shell-edge: #4a4f57;
+    --hiw-deck: #4b5058;
+    --hiw-lip: #33373d;
+    --hiw-keys: #3d4148;
+    --hiw-grille: #9aa1aa;
+    --hiw-wave-edge: transparent;
+  }
+}
+
+.hiw {
+  display: grid;
+  grid-template-areas:
+    'head'
+    'stage'
+    'copy'
+    'fact'
+    'actions';
+  gap: 16px;
+  width: min(100%, 520px);
+  padding: 20px;
+  border: 1px solid var(--border-card);
+  border-radius: calc(var(--radius-card) * 1.6);
+  background: var(--bg-elev);
+  box-shadow: 0 12px 40px rgb(0 0 0 / 0.25);
+}
+
+.hiw:focus {
+  outline: none;
+}
+
+@media (min-width: 768px) {
+  .hiw {
+    grid-template-areas:
+      'head head'
+      'stage copy'
+      'fact actions';
+    grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+    column-gap: 24px;
+    row-gap: 18px;
+    width: min(100%, 860px);
+    padding: 24px;
+  }
+
+  .hiw__copy {
+    align-self: center;
+  }
+
+  .hiw__actions {
+    align-self: end;
+  }
+}
+
+@media (max-width: 480px) {
+  .hiw-layer {
+    padding: 0;
+    place-items: stretch;
+  }
+
+  /* Get started sits at the bottom of the screen. */
+  .hiw {
+    grid-template-rows: auto auto auto auto 1fr;
+    gap: 14px;
+    width: 100%;
+    min-height: 100%;
+    padding: calc(16px + env(safe-area-inset-top)) 16px calc(20px + env(safe-area-inset-bottom));
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .hiw__actions {
+    align-self: end;
+  }
+}
+
+/* ---------- head ---------- */
+
+.hiw__head {
+  display: flex;
+  grid-area: head;
+  align-items: center;
+  gap: 12px;
+}
+
+.hiw__logo {
+  flex: none;
+  line-height: 0;
+}
+
+.hiw__titles {
+  flex: 1;
+  min-width: 0;
+}
+
+.hiw__title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.hiw__sub {
+  margin: 3px 0 0;
+  color: var(--text-2);
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.hiw__skip {
+  flex: none;
+  align-self: flex-start;
+  height: 32px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: var(--text-2);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.hiw__skip:hover {
+  background: var(--btn-neutral);
+  color: var(--text);
+}
+
+.hiw__close {
+  display: grid;
+  flex: none;
+  align-self: flex-start;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--btn-neutral);
+  color: var(--text);
+  cursor: pointer;
+}
+
+/* ---------- stage ---------- */
+
+.hiw__stage {
+  position: relative;
+  /* Clips the outer waves without overflow:hidden, which would let the grid squash the stage. */
+  clip-path: inset(0 round var(--radius-card));
+  grid-area: stage;
+  align-self: start;
+  padding: 10px 6px 4px;
+  border-radius: var(--radius-card);
+  background: var(--bg);
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+
+.hiw-scene {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+  font-family: var(--font);
+}
+
+/* Round replay button in the gap above the sound, between the two devices. */
+.hiw__replay {
+  position: absolute;
+  top: 8px;
+  left: calc(6px + (100% - 12px) * 0.662);
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--btn-neutral);
+  color: var(--text);
+  cursor: pointer;
+  transform: translateX(-50%);
+}
+
+.hiw__replay:hover {
+  background: var(--bg-hover);
+  box-shadow: inset 0 0 0 1px var(--border-input);
+}
+
+/* ---------- devices ---------- */
+
+.hiw__shell {
+  fill: var(--hiw-shell);
+  stroke: var(--hiw-shell-edge);
+  stroke-width: 1;
+}
+
+.hiw__lens {
+  fill: #5a6068;
+}
+
+.hiw__screen {
+  fill: var(--bg);
+}
+
+.hiw__side {
+  fill: var(--bg-hover);
+}
+
+.hiw__brand {
+  fill: var(--yellow);
+}
+
+.hiw__row-hi {
+  fill: var(--btn-neutral);
+}
+
+.hiw__avatar-bg {
+  fill: var(--avatar-bg);
+}
+
+.hiw__line {
+  fill: var(--text-2);
+  opacity: 0.55;
+}
+
+.hiw__line.is-faint {
+  opacity: 0.3;
+}
+
+.hiw__rule {
+  stroke: var(--border);
+  stroke-width: 0.8;
+}
+
+.hiw__name {
+  fill: var(--text);
+  font-size: 7.6px;
+  font-weight: 700;
+}
+
+.hiw__status {
+  fill: var(--text-2);
+  font-size: 6.2px;
+  font-weight: 600;
+}
+
+.hiw__status.is-typing {
+  fill: var(--blue);
+  font-weight: 700;
+}
+
+.hiw__label {
+  font-size: 6.4px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.hiw__label.is-me { fill: var(--red); }
+.hiw__label.is-them { fill: var(--blue); }
+.hiw__bar.is-me { fill: var(--red); }
+.hiw__bar.is-them { fill: var(--blue); }
+
+.hiw__msg {
+  fill: var(--text);
+  font-size: 9.6px;
+}
+
+.hiw__meta {
+  fill: var(--text-2);
+  font-size: 6px;
+  font-weight: 600;
+}
+
+.hiw__check {
+  fill: none;
+  stroke: var(--green);
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.hiw__input {
+  fill: var(--btn-neutral);
+}
+
+.hiw__typed {
+  fill: var(--text);
+  font-size: 7.6px;
+}
+
+.hiw__placeholder {
+  fill: var(--text-2);
+}
+
+.hiw__small {
+  font-size: 5.4px;
+}
+
+.hiw__caret {
+  fill: var(--blue);
+  font-weight: 400;
+}
+
+.hiw__send-bg {
+  fill: var(--blue);
+}
+
+.hiw__send-arrow {
+  /* White glyph on the brand blue in both themes. */
+  fill: #fff;
+}
+
+.hiw__send {
+  transform-box: fill-box;
+  transform-origin: center;
+  transition: transform 0.12s ease-out, filter 0.12s;
+}
+
+.hiw__send.is-pressed {
+  transform: scale(0.82);
+  filter: brightness(0.85);
+}
+
+.hiw__deck { fill: var(--hiw-deck); }
+.hiw__lip { fill: var(--hiw-lip); }
+.hiw__keys { fill: var(--hiw-keys); }
+.hiw__pad { fill: var(--hiw-keys); }
+
+.hiw__keyline {
+  stroke: var(--hiw-deck);
+  stroke-width: 0.9;
+}
+
+.hiw__grille {
+  fill: var(--hiw-grille);
+}
+
+.hiw__grille.is-speaker.is-on {
+  fill: var(--blue);
+}
+
+.hiw__pill {
+  fill: var(--btn-neutral);
+}
+
+.hiw__pill-text {
+  fill: var(--text);
+  font-size: 6px;
+  font-weight: 600;
+}
+
+.hiw__dot {
+  fill: var(--text-2);
+  transition: fill 0.2s;
+}
+
+.hiw__listen.is-hearing .hiw__dot {
+  fill: var(--green);
+}
+
+.hiw__halo {
+  fill: var(--green);
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.hiw__mic {
+  fill: #8d949d;
+}
+
+.hiw__mic.is-hearing {
+  fill: var(--green);
+}
+
+.hiw__mic-ring {
+  fill: none;
+  stroke: var(--green);
+  stroke-width: 1;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.hiw__dots circle {
+  fill: var(--text-2);
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+/* ---------- sound ---------- */
+
+.hiw__waves {
+  transition: opacity 0.45s;
+}
+
+.hiw__waves.is-off,
+.hiw__hz.is-off {
+  opacity: 0;
+}
+
+.hiw__wave {
+  /* Scales around the speaker (the group's origin). */
+  transform-origin: 0 0;
+  opacity: 0;
+}
+
+.hiw__wave path {
+  fill: none;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.hiw__wave-edge {
+  stroke: var(--hiw-wave-edge);
+  stroke-width: 4.6;
+}
+
+.hiw__wave.is-yellow .hiw__wave-core {
+  stroke: var(--yellow);
+  stroke-width: 2.8;
+}
+
+.hiw__wave.is-blue .hiw__wave-core {
+  stroke: var(--blue);
+  stroke-width: 2.6;
+}
+
+.hiw-scene.is-still .hiw__wave {
+  opacity: 0.9;
+}
+
+.hiw__hz {
+  fill: var(--text-2);
+  font-size: 7px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-anchor: middle;
+  opacity: 0.85;
+  transition: opacity 0.45s;
+}
+
+.hiw__tag {
+  transform: translate(268px, 108px);
+}
+
+.hiw__tag rect {
+  fill: var(--yellow);
+  stroke: rgb(22 25 28 / 0.9);
+  stroke-width: 0.8;
+}
+
+.hiw__tag text {
+  /* Dark ink on the brand yellow in both themes. */
+  fill: #16191c;
+  font-size: 7px;
+  font-weight: 700;
+  text-anchor: middle;
+}
+
+.hiw__tag.is-still {
+  transform: translate(222px, 112px);
+}
+
+.hiw__pointer path {
+  fill: #fff;
+  stroke: #16191c;
+  stroke-width: 0.9;
+  stroke-linejoin: round;
+}
+
+.hiw__pointer {
+  transform-origin: 0 0;
+}
+
+/* ---------- motion ---------- */
+
+@media (prefers-reduced-motion: no-preference) {
+  .hiw__caret {
+    animation: hiw-blink 0.8s steps(2, jump-none) infinite;
+  }
+
+  .hiw__pointer {
+    animation: hiw-aim 0.7s cubic-bezier(0.2, 0.7, 0.3, 1) both;
+  }
+
+  .hiw__pointer.is-pressed {
+    animation: hiw-tap 0.26s ease-out;
+  }
+
+  .hiw__sent {
+    animation: hiw-rise 0.3s ease-out both;
+  }
+
+  .hiw__wave {
+    animation: hiw-wave 1.6s linear infinite;
+  }
+
+  .hiw__hz {
+    animation: hiw-fade 0.4s ease-out both;
+  }
+
+  .hiw__tag {
+    animation: hiw-tag 1.9s linear both;
+  }
+
+  .hiw__halo {
+    animation: hiw-halo 1s ease-out infinite;
+  }
+
+  .hiw__mic-ring {
+    animation: hiw-ring 0.9s ease-out infinite;
+  }
+
+  .hiw__dots circle {
+    animation: hiw-bounce 1.1s ease-in-out infinite;
+  }
+
+  .hiw__dots circle:nth-child(2) { animation-delay: 0.15s; }
+  .hiw__dots circle:nth-child(3) { animation-delay: 0.3s; }
+
+  .hiw__pop {
+    transform-box: fill-box;
+    transform-origin: 0 50%;
+    animation: hiw-pop 0.45s cubic-bezier(0.3, 1.6, 0.5, 1) both;
+  }
+
+  .hiw__delivered {
+    animation: hiw-fade 0.35s ease-out both;
+  }
+
+  .hiw-iss__craft {
+    animation: hiw-drift 7s ease-in-out infinite;
+  }
+
+  .hiw-iss__stars circle {
+    animation: hiw-twinkle 3.2s ease-in-out infinite;
+  }
+
+  .hiw-iss__stars circle:nth-child(2) { animation-delay: 0.8s; }
+  .hiw-iss__stars circle:nth-child(3) { animation-delay: 1.6s; }
+  .hiw-iss__stars circle:nth-child(4) { animation-delay: 2.4s; }
+}
+
+@keyframes hiw-blink {
+  0% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@keyframes hiw-aim {
+  from { opacity: 0; transform: translate(-58px, 26px); }
+  25% { opacity: 1; }
+  to { opacity: 1; transform: translate(0, 0); }
+}
+
+@keyframes hiw-tap {
+  50% { transform: scale(0.82); }
+}
+
+@keyframes hiw-rise {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes hiw-wave {
+  0% { opacity: 0; transform: scale(0.45); }
+  10% { opacity: 1; }
+  70% { opacity: 0.85; }
+  100% { opacity: 0; transform: scale(6); }
+}
+
+@keyframes hiw-tag {
+  0% { opacity: 0; transform: translate(212px, 130px) scale(0.85); }
+  12% { opacity: 1; transform: translate(219px, 127px) scale(1); }
+  78% { opacity: 1; transform: translate(262px, 110px) scale(1); }
+  100% { opacity: 0; transform: translate(276px, 104px) scale(0.7); }
+}
+
+@keyframes hiw-fade {
+  from { opacity: 0; }
+}
+
+@keyframes hiw-halo {
+  0% { opacity: 0.55; transform: scale(1); }
+  100% { opacity: 0; transform: scale(2.6); }
+}
+
+@keyframes hiw-ring {
+  0% { opacity: 0.9; transform: scale(1); }
+  100% { opacity: 0; transform: scale(3.4); }
+}
+
+@keyframes hiw-bounce {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.45; }
+  30% { transform: translateY(-2.4px); opacity: 1; }
+}
+
+@keyframes hiw-pop {
+  0% { opacity: 0; transform: scale(0.4); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes hiw-drift {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  50% { transform: translate(1.5px, -2px) rotate(-2deg); }
+}
+
+@keyframes hiw-twinkle {
+  0%, 100% { opacity: 0.25; }
+  50% { opacity: 0.9; }
+}
+
+/* ---------- captions ---------- */
+
+.hiw__copy {
+  display: flex;
+  flex-direction: column;
+  grid-area: copy;
+  gap: 12px;
+  min-width: 0;
+}
+
+.hiw__steps {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.hiw__step {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  color: var(--text-2);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 22px;
+  transition: color 0.25s;
+}
+
+.hiw__num {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--btn-neutral);
+  color: var(--text-2);
+  font-size: 12px;
+  font-weight: 700;
+  transition: background-color 0.25s, color 0.25s;
+}
+
+.hiw__step.is-now {
+  color: var(--text);
+}
+
+.hiw__step.is-now .hiw__num {
+  background: var(--yellow);
+  /* Dark ink on the brand yellow in both themes. */
+  color: #16191c;
+}
+
+/* Reduced motion: a plain numbered list, all steps at once. */
+.hiw__steps.is-still .hiw__step {
+  color: var(--text);
+}
+
+.hiw__tip {
+  margin: 0;
+  color: var(--text-2);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+/* ---------- fun fact ---------- */
+
+.hiw__fact {
+  display: flex;
+  grid-area: fact;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px 10px 10px;
+  border-radius: calc(var(--radius-card) * 1.4);
+  background: var(--btn-neutral);
+}
+
+.hiw__fact p {
+  margin: 0;
+  color: var(--text-2);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.hiw__fact b {
+  color: var(--text);
+}
+
+.hiw-iss {
+  flex: none;
+  width: 63px;
+  height: 56px;
+}
+
+.hiw-iss__stars {
+  fill: var(--text-2);
+  opacity: 0.6;
+}
+
+.hiw-iss__craft {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.hiw-iss__panel {
+  fill: var(--blue);
+}
+
+.hiw-iss__cells {
+  stroke: var(--btn-neutral);
+  stroke-width: 0.9;
+}
+
+.hiw-iss__truss {
+  fill: var(--text-2);
+}
+
+.hiw-iss__module {
+  fill: var(--bg-elev);
+  stroke: var(--text-2);
+  stroke-width: 1.4;
+}
+
+.hiw-iss__radiator {
+  fill: var(--text-2);
+  opacity: 0.6;
+}
+
+.hiw-iss__beam path {
+  fill: none;
+  stroke-linecap: round;
+}
+
+.hiw-iss__beam .hiw__wave-edge {
+  stroke-width: 3.6;
+}
+
+.hiw-iss__beam .hiw-iss__beam-core {
+  stroke: var(--yellow);
+  stroke-width: 2;
+}
+
+/* ---------- actions ---------- */
+
+.hiw__actions {
+  display: flex;
+  grid-area: actions;
+  flex-direction: column;
+}
+
+.hiw__go {
+  height: 44px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--blue);
+  /* White label on the brand blue in both themes. */
+  color: #fff;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.hiw__skip:focus-visible,
+.hiw__close:focus-visible,
+.hiw__replay:focus-visible,
+.hiw__go:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}

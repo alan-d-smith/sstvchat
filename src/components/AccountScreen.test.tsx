@@ -1,13 +1,17 @@
 import { describe, it, expect, vi } from 'vitest';
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { AppProvider, useApp } from '../state/store';
 import { createMockTransport } from '../sim/transport';
 import { AccountScreen } from './AccountScreen';
 
 type Reply = number | { status: number; body: unknown };
 
-/** /api/claim answers with `reply(body)`; everything else with an empty list. */
-function setup(reply: Reply | ((body: Record<string, unknown>) => Reply)) {
+/**
+ * /api/claim answers with `reply(body)`; everything else with an empty list. How it works counts
+ * as seen unless `intro` is set.
+ */
+function setup(reply: Reply | ((body: Record<string, unknown>) => Reply), { intro = false } = {}) {
+  if (!intro) localStorage.setItem('sstv.howItWorks.seen', '1');
   const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
     if (url !== '/api/claim') return new Response('[]', { status: 200 });
     const r = typeof reply === 'function' ? reply(JSON.parse(String(init?.body))) : reply;
@@ -47,6 +51,50 @@ const logIn = async (name: string, password: string) => {
 };
 
 const openLogin = () => fireEvent.click(screen.getByRole('tab', { name: 'Log in' }));
+
+describe('AccountScreen: how it works', () => {
+  it('shows How it works before the name screen on first run; Get started moves on and is remembered', () => {
+    setup(200, { intro: true });
+    expect(screen.getByRole('dialog', { name: 'Welcome to SSTV Chat' })).toBeInTheDocument();
+    expect(screen.queryByRole('dialog', { name: 'Pick a username' })).toBeNull();
+    expect(screen.getByRole('img', { name: /A laptop sending a chat to a phone as sound/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Get started' }));
+    expect(screen.getByRole('dialog', { name: 'Pick a username' })).toBeInTheDocument();
+    expect(localStorage.getItem('sstv.howItWorks.seen')).toBe('1');
+  });
+
+  it('Skip also moves on and is remembered, so the next visit opens on the name screen', () => {
+    setup(200, { intro: true });
+    fireEvent.click(screen.getByRole('button', { name: 'Skip' }));
+    expect(screen.getByRole('dialog', { name: 'Pick a username' })).toBeInTheDocument();
+    cleanup();
+    setup(200, { intro: true });
+    expect(screen.getByRole('dialog', { name: 'Pick a username' })).toBeInTheDocument();
+    expect(screen.queryByRole('dialog', { name: 'Welcome to SSTV Chat' })).toBeNull();
+  });
+
+  it('reopens from the name screen as a modal and keeps what was typed', () => {
+    setup(200);
+    fireEvent.change(screen.getByLabelText('Username'), { target: { value: 'alan_k' } });
+    fireEvent.click(screen.getByRole('button', { name: 'How it works' }));
+    expect(screen.getByRole('dialog', { name: 'How it works' })).toBeInTheDocument();
+    expect(screen.getByText('Keep devices close (under 1 m) with the volume up.')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Got it' }));
+    expect(screen.queryByRole('dialog', { name: 'How it works' })).toBeNull();
+    expect(screen.getByLabelText('Username')).toHaveValue('alan_k');
+  });
+
+  it('reopens from the profile sheet; Escape closes it', () => {
+    document.cookie = 'sstv_user=alan_k; path=/';
+    const { app } = setup(200);
+    act(() => app.current.openAccount());
+    fireEvent.click(screen.getByRole('button', { name: 'How it works' }));
+    const how = screen.getByRole('dialog', { name: 'How it works' });
+    fireEvent.keyDown(how, { key: 'Escape' });
+    expect(screen.queryByRole('dialog', { name: 'How it works' })).toBeNull();
+    expect(screen.getByRole('dialog', { name: 'Your profile' })).toBeInTheDocument();
+  });
+});
 
 describe('AccountScreen: sign up', () => {
   it('asks for a username, an avatar and an optional password on first run', () => {

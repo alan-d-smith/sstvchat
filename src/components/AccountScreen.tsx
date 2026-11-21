@@ -5,6 +5,7 @@ import type { ClaimResult } from '../state/store';
 import { isValidName, normalizeName, randomSeed } from '../state/account';
 import type { Person } from '../types';
 import { Avatar } from './Avatar';
+import { HowItWorks, howItWorksSeen, markHowItWorksSeen } from './HowItWorks';
 import { Icon } from './Icon';
 import { Logo } from './Logo';
 import './AccountScreen.css';
@@ -46,7 +47,8 @@ function seedsWith(first?: number): number[] {
 }
 
 /**
- * Name screen, with two tabs: “Sign up” claims a unique username (the radio address), picks an
+ * First run: “How it works” (until Get started / Skip, remembered per device), then the name
+ * screen, with two tabs: “Sign up” claims a unique username (the radio address), picks an
  * avatar and optionally sets a password; “Log in” moves a name that has a password onto this
  * device. Shown until a name is claimed; afterwards it is the profile sheet (from your own
  * avatar): tapping an avatar saves it at once, a new name can be claimed, and “Log out” forgets
@@ -56,7 +58,19 @@ export function AccountScreen() {
   const { accountOpen, self } = useApp();
   /** The name just logged out of: the screen then opens on Log in with it filled in. */
   const [leftName, setLeftName] = useState<string | null>(null);
+  const [intro, setIntro] = useState(() => !howItWorksSeen());
   if (!accountOpen) return null;
+  if (!self && intro) {
+    return (
+      <HowItWorks
+        variant="welcome"
+        onDone={() => {
+          markHowItWorksSeen();
+          setIntro(false);
+        }}
+      />
+    );
+  }
   return (
     <AccountDialog
       key={self?.name ?? ''}
@@ -85,6 +99,7 @@ function AccountDialog({ initialMode, initialName, onLogout }: DialogProps) {
   const [saved, setSaved] = useState<'saving' | 'saved' | null>(null);
   const [error, setError] = useState<Problem | null>(null);
   const [confirmLogout, setConfirmLogout] = useState(false);
+  const [howOpen, setHowOpen] = useState(false);
   const titleId = useId();
   const nameId = useId();
   const pwId = useId();
@@ -95,10 +110,22 @@ function AccountDialog({ initialMode, initialName, onLogout }: DialogProps) {
   const nameRef = useRef<HTMLInputElement>(null);
   const pwRef = useRef<HTMLInputElement>(null);
   const tabRefs = useRef<Record<Mode, HTMLButtonElement | null>>({ signup: null, login: null });
+  const formRef = useRef<HTMLFormElement>(null);
+  const howRef = useRef<HTMLButtonElement>(null);
   const pick = useRef(0);
 
   const loggingIn = !signedIn && mode === 'login';
   const newName = !signedIn || normalizeName(name) !== self.name;
+
+  // The form underneath can't be reached while How it works is open over it.
+  useEffect(() => {
+    if (formRef.current) formRef.current.inert = howOpen;
+  }, [howOpen]);
+
+  const closeHow = () => {
+    setHowOpen(false);
+    requestAnimationFrame(() => howRef.current?.focus());
+  };
 
   useEffect(() => {
     if (signedIn) return;
@@ -206,6 +233,7 @@ function AccountDialog({ initialMode, initialName, onLogout }: DialogProps) {
       }}
     >
       <form
+        ref={formRef}
         className="account__card"
         role="dialog"
         aria-modal="true"
@@ -382,31 +410,41 @@ function AccountDialog({ initialMode, initialName, onLogout }: DialogProps) {
             : loggingIn ? 'Log in' : !signedIn ? 'Sign up' : newName ? 'Switch to this name' : 'Done'}
         </button>
 
-        {signedIn && (
+        <div className="account__links">
+          <button
+            ref={howRef}
+            type="button"
+            className="account__link"
+            aria-haspopup="dialog"
+            onClick={() => setHowOpen(true)}
+          >
+            How it works
+          </button>
+          {signedIn && !confirmLogout && (
+            <button type="button" className="account__link account__link--danger" onClick={() => setConfirmLogout(true)}>
+              Log out
+            </button>
+          )}
+        </div>
+
+        {signedIn && confirmLogout && (
           <div className="account__logout">
-            {confirmLogout ? (
-              <>
-                <p className="account__logout-note" id={outId}>
-                  Log out of <b>{self.name}</b>? To use it here again you’ll need its password. A name
-                  without one can’t come back.
-                </p>
-                <div className="account__logout-actions">
-                  <button type="button" className="account__ghost" onClick={() => setConfirmLogout(false)}>
-                    Cancel
-                  </button>
-                  <button type="button" className="account__danger" aria-describedby={outId} onClick={leave}>
-                    Log out
-                  </button>
-                </div>
-              </>
-            ) : (
-              <button type="button" className="account__link account__link--danger" onClick={() => setConfirmLogout(true)}>
+            <p className="account__logout-note" id={outId}>
+              Log out of <b>{self.name}</b>? To use it here again you’ll need its password. A name
+              without one can’t come back.
+            </p>
+            <div className="account__logout-actions">
+              <button type="button" className="account__ghost" onClick={() => setConfirmLogout(false)}>
+                Cancel
+              </button>
+              <button type="button" className="account__danger" aria-describedby={outId} onClick={leave}>
                 Log out
               </button>
-            )}
+            </div>
           </div>
         )}
       </form>
+      {howOpen && <HowItWorks variant="modal" onDone={closeHow} />}
     </div>
   );
 }
