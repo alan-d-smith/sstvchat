@@ -90,7 +90,7 @@ export function createAudioTransport(opts: {
   heard?: HeardIds;
 }): AudioTransport {
   const { engine, fallback } = opts;
-  const diag = createRadioDiag();
+  const diag = createRadioDiag({ receivingImage: () => rx.mode === 'sstv' });
   const note = (h: PacketHeader | undefined, decision: string) =>
     diag.add({ kind: h?.kind ?? '?', from: h?.from ?? '', to: h?.to ?? [], id: h?.id ?? '', decision });
 

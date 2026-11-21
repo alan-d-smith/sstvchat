@@ -40,16 +40,19 @@ export interface RadioDiag {
   log(): RadioLogEntry[];
   count(k: keyof RadioStats, n?: number): void;
   add(e: Omit<RadioLogEntry, 'at'>): void;
+  /** An SSTV image is being received (the FSK receiver is not listening meanwhile). */
+  receivingImage(): boolean;
 }
 
 export const LOG_SIZE = 10;
 
 /** Counters and the decision log (bumped by the transport and the tone watch). */
-export function createRadioDiag(): RadioDiag {
+export function createRadioDiag(opts: { receivingImage?: () => boolean } = {}): RadioDiag {
   const s: RadioStats = { bytes: 0, frames: 0, headers: 0, crcOk: 0, crcFail: 0, aborts: 0, sstvStarted: 0, sstvDone: 0, visTimeouts: 0, undecodedTones: 0 };
   const entries: RadioLogEntry[] = [];
   return {
     stats: () => ({ ...s }),
+    receivingImage: () => opts.receivingImage?.() ?? false,
     log: () => [...entries],
     count(k, n = 1) {
       s[k] += n;
@@ -260,10 +263,16 @@ export function fskTone(chunk: Float32Array, rate: number): 'mark' | 'space' | n
 /**
  * Watches the mic for FSK-like tones the receiver cannot frame (e.g. OS "audio enhancements" /
  * noise suppression mangling the tones): calls `onUndecoded` once per stretch of clear two-tone
- * audio that lasts HINT_TONE_S without a new frame (`framesSeen` = the receiver's frame count).
- * Subscribe it after the transport so each chunk is decoded before it is judged.
+ * audio that lasts HINT_TONE_S without a new frame in `receiver`. Stands down while an SSTV
+ * image is being received (no FSK is decoded then). Subscribe it after the transport so each
+ * chunk is decoded before it is judged.
  */
-export function createToneWatch(engine: AudioEngine, framesSeen: () => number, onUndecoded: () => void): () => void {
+export function createToneWatch(
+  engine: AudioEngine,
+  receiver: Pick<RadioDiag, 'stats' | 'receivingImage'>,
+  onUndecoded: () => void,
+): () => void {
+  const framesSeen = () => receiver.stats().frames;
   let inStretch = false;
   let tone = 0;
   let marks = 0;
@@ -272,6 +281,10 @@ export function createToneWatch(engine: AudioEngine, framesSeen: () => number, o
   let framesAtStart = 0;
   let fired = false;
   return engine.onSamples((chunk) => {
+    if (receiver.receivingImage()) {
+      inStretch = false;
+      return;
+    }
     const rate = engine.sampleRate;
     const dur = chunk.length / rate;
     const which = fskTone(chunk, rate);

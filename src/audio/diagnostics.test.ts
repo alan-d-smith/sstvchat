@@ -126,7 +126,7 @@ describe('undecoded-tone watch', () => {
     const mic = engineWithMic();
     const t = createAudioTransport({ engine: mic.engine, self: () => ({ id: 'bob', name: 'bob' }), recipients: (c) => c, fallback: createMockTransport() });
     const hits: number[] = [];
-    createToneWatch(mic.engine, () => t.diag.stats().frames, () => hits.push(t.diag.stats().frames));
+    createToneWatch(mic.engine, t.diag, () => hits.push(t.diag.stats().frames));
     return { ...mic, t, hits };
   }
 
@@ -144,6 +144,22 @@ describe('undecoded-tone watch', () => {
     expect(w.hits).toEqual([0]);
     w.hear(room(twoTone(300, 1))); // too short to judge
     expect(w.hits).toEqual([0]);
+  });
+
+  it('stands down while an SSTV image is being received (no FSK is decoded then)', () => {
+    const w = watch();
+    const header = encodePacket({ kind: 'snap', from: 'alice', fromName: '', to: ['bob'], chatId: 'bob', mode: 'Robot36', id: 'sn01', text: '' });
+    const head = fskModulate(header, RATE);
+    const audio = new Float32Array(head.length + RATE * 3.15);
+    audio.set(head);
+    // A pause, then undecodable tones where the image should be (all within the VIS timeout).
+    audio.set(twoTone(100, 2.6), head.length + RATE * 0.55); // random bits: no UART frame
+    w.hear(room(audio));
+    expect(w.t.diag.stats()).toMatchObject({ crcOk: 1, visTimeouts: 0 });
+    expect(w.hits).toEqual([]);
+    w.hear(room(twoTone(300, 4))); // past the VIS timeout the FSK receiver listens again
+    expect(w.t.diag.stats().visTimeouts).toBe(1);
+    expect(w.hits).toEqual([1]);
   });
 
   it('ignores SSTV images, speech-like sound and silence', () => {

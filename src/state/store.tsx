@@ -270,7 +270,7 @@ export function AppProvider({ children, transport: given }: { children: ReactNod
   // Tones the receiver can't frame (e.g. Windows "Audio enhancements" eating them): say so once.
   useEffect(() => {
     if (!engine || !diag) return;
-    return createToneWatch(engine, () => diag.stats().frames, () => {
+    return createToneWatch(engine, diag, () => {
       diag.count('undecodedTones');
       if (!decodeHintDismissedRecently()) setDecodeHint(true);
     });
