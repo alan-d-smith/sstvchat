@@ -30,7 +30,7 @@
   touch-action: manipulation;
 }
 
-.m-app :focus-visible {
+:where(.m-app :focus-visible) {
   outline: 2px solid var(--blue);
   outline-offset: 2px;
 }
