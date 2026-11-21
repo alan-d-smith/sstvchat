@@ -161,3 +161,6 @@ docs/reference/
 
 # Claude Code agent worktrees
 .claude/worktrees/
+
+# Local design notes (not part of the repo)
+docs/superpowers/
