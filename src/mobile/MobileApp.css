@@ -1,0 +1,114 @@
+/*
+ * Mobile shell. Sizes are CSS px measured from docs/reference/mobile-*.png (3x of 428x926).
+ * The iOS status bar and home-indicator strip are device chrome: screens pad for them with
+ * env(safe-area-inset-*) instead of drawing them, so they collapse to 0 in a desktop browser.
+ */
+
+.m-app {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  height: 100dvh;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--text);
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+/* Camera is always black, whatever the theme; its nav sits on the same black. */
+.m-app--camera {
+  background: var(--camera-bg, #000);
+}
+
+/* Zero-specificity reset so component classes can still set their own colour. */
+:where(.m-app) :where(button) {
+  font: inherit;
+  color: inherit;
+  touch-action: manipulation;
+}
+
+.m-app :focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+
+.m-app__base {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* Under a full-screen overlay: keep layout (and scroll position), drop paint, focus and a11y. */
+.m-app__base[data-covered] {
+  visibility: hidden;
+}
+
+.m-app__screen {
+  position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.m-app__overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+/* ---------- bottom nav: 52px bar + home-indicator inset, 5 equal columns ---------- */
+
+.m-nav {
+  display: flex;
+  flex: none;
+  padding: 0 16px env(safe-area-inset-bottom);
+  border-top: 0.5px solid var(--border);
+  background: var(--nav-bg);
+  color: var(--text);
+}
+
+.m-app--camera .m-nav {
+  border-top-color: transparent;
+  background: var(--camera-bg, #000);
+  color: var(--camera-fg, #fff);
+}
+
+.m-nav__btn {
+  display: grid;
+  flex: 1;
+  place-items: center;
+  height: 52px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+.m-nav__btn:focus-visible {
+  outline-offset: -6px;
+}
+
+/* ---------- empty tabs ---------- */
+
+.m-placeholder {
+  display: grid;
+  flex: 1;
+  place-items: center;
+  padding-top: env(safe-area-inset-top);
+}
+
+.m-placeholder__title {
+  margin: 0;
+  color: var(--text-2);
+  font-size: 20px;
+  font-weight: 700;
+}
