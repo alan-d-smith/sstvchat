@@ -182,6 +182,40 @@
   outline-offset: 2px;
 }
 
+/* Live webcam: fills the 3:4 card, which is exactly the frame the shutter captures. */
+.rp-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity 200ms ease;
+}
+
+.rp-video.is-ready { opacity: 1; }
+.rp-video.is-mirrored { transform: scaleX(-1); }
+
+/* Lens strip centred on the shutter (same height, same bottom), under it in stacking order. */
+.rp-lenses {
+  position: absolute;
+  right: 0;
+  bottom: 24px;
+  left: 0;
+  height: 64px;
+}
+
+.rp-shutter { z-index: 1; }
+
+.rp-gallery {
+  position: absolute;
+  bottom: 36px;
+  left: 14px;
+  z-index: 1;
+  width: 40px;
+  height: 40px;
+}
+
 /* ---------- preview ---------- */
 
 .rp-capture {

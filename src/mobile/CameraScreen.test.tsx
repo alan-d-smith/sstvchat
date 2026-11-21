@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { AppProvider, useApp } from '../state/store';
 import { CameraScreen } from './CameraScreen';
 import { PreviewScreen } from './PreviewScreen';
@@ -25,6 +25,8 @@ const overlay = () => JSON.parse(screen.getByTestId('overlay').textContent ?? 'n
 
 describe('CameraScreen and PreviewScreen (mobile)', () => {
   const putImageData = vi.fn();
+  const drawImage = vi.fn();
+  const shot = new ImageData(240, 320);
 
   beforeEach(() => {
     window.matchMedia = vi.fn().mockImplementation((q: string) => ({
@@ -34,13 +36,17 @@ describe('CameraScreen and PreviewScreen (mobile)', () => {
       removeEventListener: () => {},
     })) as unknown as typeof window.matchMedia;
     vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
-      putImageData,
+      putImageData, drawImage, filter: 'none', translate: () => {}, scale: () => {}, getImageData: () => shot,
     } as unknown as CanvasRenderingContext2D);
+    vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined);
     putImageData.mockClear();
+    drawImage.mockClear();
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+    Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: undefined });
   });
 
   it('shows the zoom stops with 1x selected and the lens categories', () => {
@@ -80,5 +86,45 @@ describe('CameraScreen and PreviewScreen (mobile)', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /send to/i }));
     expect(overlay()).toEqual({ type: 'sendto', to: 'julie' });
+  });
+
+  it('captures the webcam frame through the chosen lens filter', async () => {
+    const track = { stop: vi.fn(), getSettings: () => ({ facingMode: 'user' }) };
+    const stream = { getTracks: () => [track], getVideoTracks: () => [track] };
+    Object.defineProperty(navigator, 'mediaDevices', {
+      configurable: true,
+      value: { getUserMedia: vi.fn().mockResolvedValue(stream) },
+    });
+    const { container } = render(<AppProvider><Harness /></AppProvider>);
+    await act(async () => {});
+    const video = container.querySelector('video')!;
+    Object.defineProperties(video, { videoWidth: { value: 640 }, videoHeight: { value: 480 } });
+    await act(async () => {
+      video.dispatchEvent(new Event('loadeddata'));
+    });
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Mono' }));
+    expect(video.style.filter).toBe('grayscale(1) contrast(1.15)');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Take snap' }));
+    expect(drawImage).toHaveBeenCalledWith(video, 140, 0, 360, 480, 0, 0, 240, 320);
+    expect(overlay()).toEqual({ type: 'preview' });
+    expect(track.stop).toHaveBeenCalled();
+  });
+
+  it('sends a photo from the gallery through the same preview', async () => {
+    const bitmap = { width: 300, height: 400, close: vi.fn() };
+    vi.stubGlobal('createImageBitmap', vi.fn().mockResolvedValue(bitmap));
+    render(<AppProvider><Harness /></AppProvider>);
+
+    const input = screen.getByTestId('gallery-input') as HTMLInputElement;
+    expect(input).toHaveAttribute('accept', 'image/*');
+    expect(input).not.toHaveAttribute('capture');
+    const file = new File(['x'], 'beach.jpg', { type: 'image/jpeg' });
+    await act(async () => {
+      fireEvent.change(input, { target: { files: [file] } });
+    });
+    expect(drawImage).toHaveBeenCalledWith(bitmap, 0, 0, 300, 400, 0, 0, 240, 320);
+    expect(overlay()).toEqual({ type: 'preview' });
   });
 });
