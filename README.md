@@ -39,14 +39,17 @@ TypeScript that runs entirely in the browser.
 | | |
 |---|---|
 | 📸 **Snaps over SSTV** | Take a photo with the webcam or pick one from your gallery. Swipe the lens carousel through 12 filters (Thermal, Glitch, Comic, Scanline and more). The snap is sent as Robot36 SSTV, shifted up 1500 Hz out of the speech band; a standard SSTV decoder can read it with a matching frequency offset. |
-| 💬 **Texts over two-tone FSK** | Chat messages are framed, checksummed and sent as 3000 / 4000 Hz audio, above the band where voices are loud. Incoming texts show a typing indicator from the moment their header is heard. |
+| 💬 **Texts over two-tone FSK** | Chat messages are framed, checksummed and sent as 3000 / 4000 Hz audio, above the band where voices are loud. From the moment a header is heard, a live spectrogram of the incoming signal fills the spot where the message will appear. |
 | 🎯 **Header-first addressing** | Every transmission opens with a short two-tone header saying who it's from and to. A listening device accepts only what's addressed to its username, and records it automatically. |
 | 🎧 **Always-on receiver** | Once enabled, the microphone keeps listening. Snaps record in the background whichever chat you have open, and land only in the sender's chat. |
 | 💾 **Saved locally** | Chats, messages and received images persist in `localStorage`. A snap that has been received is never received again. |
 | 👤 **Accounts** | Sign up or log in with a unique username, an original avatar and an optional password, backed by Upstash Redis. |
 | 👥 **Group chats** | Pick several people in New Chat to create a group on the server; group texts and snaps are addressed to every member over audio. |
-| 🤝 **Friends** | Friend requests with a live badge, in-app and system notifications, and a directory of everyone on the app. |
+| 🤝 **Friends** | Friend requests with a live badge, in-app and system notifications (including when someone removes you), search, and a directory of everyone on the app. |
+| 🗑️ **Local delete** | Long-press a message on mobile or right-click it on desktop to copy it or delete it from this device. |
+| 🎙️ **Device settings** | Pick the microphone and camera to use, with a live mic level meter. |
 | 🩺 **Radio diagnostics** | A live panel with mic settings, input level, tone strength, decoder counters and a decision log, plus one-click 10-second WAV capture for offline analysis. |
+| 🛰️ **Onboarding** | An animated "How it works" walkthrough of a message travelling from one device to another as sound. |
 | 🌗 **Polished UI** | Desktop three-pane and mobile tab layouts that follow your system's light or dark theme. |
 
 ## How it works
@@ -55,7 +58,7 @@ TypeScript that runs entirely in the browser.
   Sender                                                            Receiver
  ┌──────────────┐    two-tone header      SSTV image (Robot36)    ┌──────────────┐
  │ type / snap  │ ─▶ "from alan to bea" ─▶ ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒ ─▶ │ mic (always  │
- │  → modulate  │    3000/4000 Hz FSK      3000–3800 Hz, ~37 s    │  on) → decode│
+ │  → modulate  │    3000/4000 Hz FSK      2600–3800 Hz, ~37 s    │  on) → decode│
  │  → speaker   │                                                 │  → chat      │
  └──────────────┘                                                 └──────────────┘
 ```
@@ -104,8 +107,9 @@ In development the API runs in memory inside the Vite dev server, so no database
 >   removes steady tones.
 > - **iPhone:** in Control Center, keep **Mic Mode** on *Standard*, never *Voice Isolation*.
 > - Keep the page in the foreground; mobile browsers suspend the mic for background tabs.
-> - The **Radio details** panel (Shift+R, or the link next to the radio pill) shows exactly
->   what the mic hears.
+> - **Bluetooth headsets** cut off audio above about 4 kHz; use the device's built-in mic and speaker.
+> - The **Radio details** panel (Shift+R, the ⋯ menu, Settings, or the link under the radio pill)
+>   shows exactly what the mic hears.
 
 ## The protocol
 
@@ -203,7 +207,8 @@ node scripts/browser-e2e.mjs out/          # Chromium with the WAV as a fake mic
 ```
 
 - **Modem tests:** loopback through silence, attenuation, 15 dB noise, 48 → 44.1 kHz
-  resampling, clock drift and room echo.
+  resampling, clock drift and room echo, plus a simulated crowd of talkers (texts still decode
+  at 75% when the chatter is 10 dB louder than the signal).
 - **Two-device end to end:** two real transports wired speaker-to-mic. A text and a snap from
   alice reach bob, never carol, and a repeated recording is received only once.
 - **Browser end to end:** a real Chromium decodes a recorded transmission from its fake
