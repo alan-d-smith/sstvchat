@@ -6,8 +6,10 @@
 // delivered in mic-sized chunks. Time is compressed: playback is handed to the receivers at once.
 import { describe, expect, it } from 'vitest';
 import { createAudioTransport } from './audioTransport';
+import type { AudioTransport } from './audioTransport';
 import type { AudioEngine } from './engine';
 import { resampleLinear } from './dsp';
+import { robot36DurationMs } from './robot36';
 import { paintRow } from '../sim/rotate';
 import { createMockTransport } from '../sim/transport';
 import type { Transport, TransportEvents } from '../sim/transport';
@@ -47,7 +49,8 @@ const NOISE = 0.01; // ≈ 24 dB below the received tone
 const PAD_MS = 400; // room noise before and after each transmission
 
 /** One shared room. `leak`: a device also hears its own transmission (no mic mute). */
-function air(opts: { leak?: boolean; seed?: number } = {}) {
+/** `garble`: damages what is played before the room hears it (e.g. a burst of noise over one part). */
+function air(opts: { leak?: boolean; seed?: number; garble?: (samples: Float32Array) => Float32Array } = {}) {
   const devices: Device[] = [];
   const queue: Play[] = [];
   const rand = mulberry32(opts.seed ?? 7);
@@ -116,7 +119,7 @@ function air(opts: { leak?: boolean; seed?: number } = {}) {
       played.push(p);
       for (const d of devices) {
         if (d === p.from && !opts.leak) continue;
-        d.hear(channel(p.samples, p.from.rate, d.rate));
+        d.hear(channel(opts.garble ? opts.garble(p.samples) : p.samples, p.from.rate, d.rate));
       }
       p.onProgress?.(1);
       p.resolve();
@@ -209,6 +212,36 @@ describe('two devices over the air (real modems)', () => {
     expect(bandError(got, sent)).toBeLessThan(16);
 
     expect(rxOnly(carol)).toEqual([]);
+  });
+
+  it('still receives a snap whose first header copy is drowned out (the second copy starts the image)', async () => {
+    // The header goes out twice: [copy, 150 ms, copy, 300 ms, Robot36]. Bury most of the first copy.
+    const garble = (x: Float32Array) => {
+      const image = Math.round((robot36DurationMs() * 48000) / 1000);
+      const copy = (x.length - image - Math.round(48000 * 0.45)) / 2;
+      const y = x.slice();
+      const rand = mulberry32(99);
+      for (let i = Math.round(copy * 0.2); i < copy; i++) y[i] = 0.9 * (2 * rand() - 1);
+      return y;
+    };
+    const room = air({ seed: 6, garble });
+    const alice = room.device('alice', 48000);
+    const bob = room.device('bob', 44100);
+    const sent = testSnap();
+    alice.transport.sendSnap(['bob'], sent);
+    await room.run();
+
+    expect(names(bob)).toEqual(['rx:start', 'rx:done']);
+    const { diag } = bob.transport as AudioTransport;
+    // Both copies were framed; the first was lost (abort / bad CRC), the second accepted.
+    expect(diag.stats()).toMatchObject({ frames: 2, crcOk: 1, sstvDone: 1 });
+    expect(diag.stats().aborts + diag.stats().crcFail).toBeGreaterThanOrEqual(1);
+    expect(diag.log().map((e) => e.decision)).toEqual(['accepted → SSTV', 'SSTV: VIS found, receiving', 'SSTV: done (240 lines)']);
+    const rows = bob.events('rx:row');
+    expect(rows).toHaveLength(240);
+    const got = new ImageData(240, 320);
+    for (const [, , i, row] of rows) paintRow(got, i as number, row as Uint8ClampedArray);
+    expect(bandError(got, sent)).toBeLessThan(16);
   });
 
   it('ignores its own transmissions even when they leak into its mic', async () => {

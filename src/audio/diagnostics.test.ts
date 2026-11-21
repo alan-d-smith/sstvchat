@@ -158,7 +158,7 @@ describe('undecoded-tone watch', () => {
     w.hear(room(audio));
     expect(w.t.diag.stats()).toMatchObject({ crcOk: 1, visTimeouts: 0 });
     expect(w.hits).toEqual([]);
-    w.hear(room(twoTone(300, 4))); // past the VIS timeout the FSK receiver listens again
+    w.hear(room(twoTone(300, 8))); // past the VIS wait (which covers a second header copy) the FSK receiver listens again
     expect(w.t.diag.stats().visTimeouts).toBe(1);
     expect(w.hits).toEqual([1]);
   });

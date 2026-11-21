@@ -14,7 +14,8 @@ import type { TransportEvents } from '../sim/transport';
  * and receiver switching can be tested without real DSP:
  *   FSK frame  = [FSK, byteCount, ...bytes]        (bytes = JSON of the packet)
  *   Robot36    = [R36, r, g, b, 1 × 240]           (one row per trailing sample)
- * Zeros are silence. A non-zero sample other than R36 while waiting for VIS is a timeout.
+ * Zeros are silence. While waiting for VIS an FSK frame is skipped (the real decoder ignores the
+ * two tones); any other non-zero sample except R36 is a timeout.
  */
 const fake = vi.hoisted(() => {
   const FSK = 1000;
@@ -72,10 +73,19 @@ const fake = vi.hoisted(() => {
     state: 'waiting-vis' | 'receiving' | 'done' | 'timeout' | 'aborted' = 'waiting-vis';
     private px: number[] = [];
     private rows = 0;
+    private skip = 0; // samples left of an FSK frame (-1: its length comes next)
     constructor(_rate: number, private events: R36Events, _opts?: unknown) {}
     push(samples: Float32Array) {
       for (const v of samples) {
         if (this.state === 'waiting-vis') {
+          if (this.skip !== 0) {
+            this.skip = this.skip < 0 ? v : this.skip - 1;
+            continue;
+          }
+          if (v === FSK) {
+            this.skip = -1;
+            continue;
+          }
           if (v === 0) continue;
           if (v !== R36) {
             this.state = 'timeout';
@@ -131,7 +141,12 @@ const fake = vi.hoisted(() => {
 });
 
 vi.mock('./packet', () => ({ encodePacket: vi.fn(fake.encodePacket) }));
-vi.mock('./fsk', () => ({ fskModulate: vi.fn(fake.fskModulate), FskReceiver: fake.FskReceiver, FSK_GUARD_HZ: [] }));
+vi.mock('./fsk', () => ({
+  fskModulate: vi.fn(fake.fskModulate),
+  FskReceiver: fake.FskReceiver,
+  fskDurationMs: (n: number) => 100 * n,
+  FSK_GUARD_HZ: [],
+}));
 vi.mock('./robot36', () => ({ robot36Modulate: vi.fn(fake.robot36Modulate), Robot36Receiver: fake.Robot36Receiver }));
 
 const RATE = 8000;
@@ -282,6 +297,36 @@ describe('audio transport: receive', () => {
     expect(rows.every((r) => r[1] === rh)).toBe(true);
     expect(bob.events('rx:progress').at(-1)).toEqual(['rx:progress', rh, 1]);
     expect(carol.log).toEqual([]);
+  });
+
+  it('sends the snap header twice (same id) before the image, and takes the first copy that arrives intact', () => {
+    const alice = radio('alice', 'Alice');
+    alice.t.sendSnap(['c1'], portrait(10, 20, 30));
+    expect(encodePacket).toHaveBeenCalledTimes(1); // one packet, one id, played twice
+    const samples = alice.plays[0].samples;
+    const frameLen = samples[1] + 2;
+    const copy = samples.subarray(0, frameLen);
+    const gap = 0.15 * RATE;
+    expect(Array.from(samples.subarray(frameLen + gap, 2 * frameLen + gap))).toEqual(Array.from(copy));
+    expect(samples.subarray(frameLen, frameLen + gap).every((v) => v === 0)).toBe(true);
+
+    // First copy garbled: the second one starts the image.
+    const bob = radio('bob', 'Bob');
+    fake.state.crcOk = false;
+    bob.hear(samples.subarray(0, frameLen));
+    fake.state.crcOk = true;
+    bob.hear(samples.subarray(frameLen));
+    expect(bob.names()).toEqual(['rx:start', 'rx:done']);
+    expect(bob.events('rx:row')).toHaveLength(240);
+
+    // First copy fine: the second is heard by the image decoder, which waits on for the VIS.
+    const carol = radio('bob', 'Bob');
+    carol.hear(samples);
+    expect(carol.names()).toEqual(['rx:start', 'rx:done']);
+    expect(carol.events('rx:row')).toHaveLength(240);
+    expect((carol.t as AudioTransport).diag.log().map((e) => e.decision)).toEqual([
+      'accepted → SSTV', 'SSTV: VIS found, receiving', 'SSTV: done (240 lines)',
+    ]);
   });
 
   it('sends a snap to several chats with an empty chatId and every recipient', () => {

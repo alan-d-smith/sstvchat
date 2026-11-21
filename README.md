@@ -62,7 +62,7 @@ TypeScript that runs entirely in the browser.
 
 1. **Send:** the app builds a packet (sender, recipients, chat id, message id, text) and
    modulates it into audio with a continuous-phase FSK oscillator. Snaps send the same packet
-   as a header, then 300 ms of silence, then the image as Robot36.
+   as a header twice (150 ms apart, same id), then 300 ms of silence, then the image as Robot36.
 2. **Hear:** the receiver's AudioWorklet streams mic samples into an FSK demodulator (sliding
    Goertzel filters and a bit-clock loop) and a packet parser that resyncs on the magic bytes.
 3. **Decide:** once the header fields are in, the device checks that it's a recipient. Its

@@ -1,5 +1,5 @@
-// Transport over real audio: text as a two-tone FSK packet, snaps as an FSK header packet then
-// Robot36. Half duplex with one FIFO send queue. Incoming frames are accepted only when their
+// Transport over real audio: text as a two-tone FSK packet, snaps as an FSK header packet (sent
+// twice: a lost header loses the whole image) then Robot36. Half duplex with one FIFO send queue. Incoming frames are accepted only when their
 // header addresses this device's identity and was not sent by it. Every packet carries a short
 // message id; the same sender + id heard again (a looped recording, an echo) is ignored. The mock
 // transport stays behind `simulateIncoming` so the demo panel keeps working.
@@ -21,7 +21,9 @@ export interface Identity { id: string; name: string }
 export const TEXT_MODE = 'two-tone';
 /** Silence between a snap's FSK header and its SSTV image. */
 export const HEADER_GAP_MS = 300;
-/** How long to wait for the VIS code after a snap header before giving up. */
+/** Silence between the two copies of a snap's FSK header. */
+export const HEADER_REPEAT_GAP_MS = 150;
+/** How long to wait for the VIS code after the second snap header copy before giving up. */
 export const VIS_TIMEOUT_MS = 4000;
 /** How long a received message id is remembered. */
 export const REPEAT_WINDOW_MS = 60 * 60 * 1000;
@@ -206,6 +208,9 @@ export function createAudioTransport(opts: {
 
   function startSstv(p: Packet) {
     const handle = `arx-${++counter}`;
+    // The header goes out twice and the image follows the second copy. Which copy this was is
+    // unknown, so the VIS wait also covers the other copy's airtime (same packet, same length).
+    const visTimeoutMs = VIS_TIMEOUT_MS + fskDurationMs(encodePacket(p).length) + HEADER_REPEAT_GAP_MS;
     const mine = () => rx.mode === 'sstv' && rx.handle === handle;
     const receiver = new Robot36Receiver(engine.sampleRate, {
       onRow: (i, row) => {
@@ -225,11 +230,11 @@ export function createAudioTransport(opts: {
       },
       onTimeout: () => {
         diag.count('visTimeouts');
-        note(p, `SSTV: no VIS within ${VIS_TIMEOUT_MS / 1000} s`);
+        note(p, `SSTV: no VIS within ${(visTimeoutMs / 1000).toFixed(1)} s`);
         forget(p); // nothing arrived: a repeat of this snap may still be received
         endSstv(handle, 'rx:cancelled');
       },
-    }, { visTimeoutMs: VIS_TIMEOUT_MS });
+    }, { visTimeoutMs });
     rx = { mode: 'sstv', handle, rx: receiver };
     emit('rx:start', handle, p.from, 'snap', MODE, metaOf(p));
   }
@@ -364,11 +369,17 @@ export function createAudioTransport(opts: {
       enqueue({
         handle,
         chatIds: ids,
-        build: (rate) => concat([
-          fskModulate(header('snap', ids, ids.length === 1 ? ids[0] : '', ''), rate),
-          new Float32Array(Math.round((rate * HEADER_GAP_MS) / 1000)),
-          robot36Modulate(rotateCW(image), rate),
-        ]),
+        build: (rate) => {
+          // Two identical copies (same id): the receiver takes the first with a good CRC.
+          const head = fskModulate(header('snap', ids, ids.length === 1 ? ids[0] : '', ''), rate);
+          return concat([
+            head,
+            new Float32Array(Math.round((rate * HEADER_REPEAT_GAP_MS) / 1000)),
+            head,
+            new Float32Array(Math.round((rate * HEADER_GAP_MS) / 1000)),
+            robot36Modulate(rotateCW(image), rate),
+          ]);
+        },
       });
       return handle;
     },
