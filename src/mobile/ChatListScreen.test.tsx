@@ -156,6 +156,86 @@ describe('mobile chat list', () => {
   });
 });
 
+describe('mobile chat list ⋯ menu', () => {
+  const openMenu = () => {
+    fireEvent.click(screen.getByRole('button', { name: 'More' }));
+    return screen.getByRole('dialog', { name: 'Chat options' });
+  };
+
+  it('opens an action sheet with New Chat, New Group Chat, Settings and Done', () => {
+    renderMobile();
+    const menu = openMenu();
+    expect(within(menu).getAllByRole('button').map((b) => b.textContent)).toEqual(['New Chat', 'New Group Chat', 'Settings', 'Done']);
+    expect(screen.getByRole('button', { name: 'More' })).toHaveAttribute('aria-expanded', 'true');
+  });
+
+  it('New Chat and New Group Chat open the New Chat sheet', () => {
+    renderMobile();
+    fireEvent.click(within(openMenu()).getByRole('button', { name: 'New Chat' }));
+    expect(screen.queryByRole('dialog', { name: 'Chat options' })).toBeNull();
+    const sheet = screen.getByRole('dialog', { name: 'New Chat' });
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Close' }));
+    expect(screen.queryByRole('dialog', { name: 'New Chat' })).toBeNull();
+
+    fireEvent.click(within(openMenu()).getByRole('button', { name: 'New Group Chat' }));
+    expect(screen.queryByRole('dialog', { name: 'Chat options' })).toBeNull();
+    expect(screen.getByRole('dialog', { name: 'New Chat' })).toBeInTheDocument();
+  });
+
+  it('Settings opens the microphone and camera settings', () => {
+    renderMobile();
+    fireEvent.click(within(openMenu()).getByRole('button', { name: 'Settings' }));
+    expect(screen.queryByRole('dialog', { name: 'Chat options' })).toBeNull();
+    const settings = screen.getByRole('dialog', { name: 'Settings' });
+    expect(within(settings).getByRole('group', { name: 'Microphone' })).toBeInTheDocument();
+    expect(within(settings).getByRole('group', { name: 'Camera' })).toBeInTheDocument();
+  });
+
+  it('closes on Done, a tap on the dimmed screen and Esc', () => {
+    renderMobile();
+    fireEvent.click(within(openMenu()).getByRole('button', { name: 'Done' }));
+    expect(screen.queryByRole('dialog', { name: 'Chat options' })).toBeNull();
+
+    fireEvent.click(openMenu().parentElement!);
+    expect(screen.queryByRole('dialog', { name: 'Chat options' })).toBeNull();
+
+    openMenu();
+    fireEvent.keyDown(document.activeElement!, { key: 'Escape' });
+    expect(screen.queryByRole('dialog', { name: 'Chat options' })).toBeNull();
+    expect(screen.queryByRole('dialog', { name: 'New Chat' })).toBeNull();
+  });
+});
+
+describe('mobile search', () => {
+  it('the chat list search button opens search; picking a chat opens it', () => {
+    const s = renderMobile();
+    fireEvent.click(screen.getByRole('button', { name: 'Search' }));
+    const search = screen.getByRole('dialog', { name: 'Search' });
+    fireEvent.change(within(search).getByRole('searchbox'), { target: { value: 'starfish' } });
+    fireEvent.click(within(search).getByRole('button', { name: /Starfish Squad/ }));
+    expect(screen.queryByRole('dialog', { name: 'Search' })).toBeNull();
+    expect(s.overlay()).toEqual({ type: 'conversation', chatId: 'starfish' });
+  });
+
+  it('picking someone without a chat starts a 1:1 chat with them', () => {
+    const s = renderMobile();
+    fireEvent.click(screen.getByRole('button', { name: 'Search' }));
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Search chats and people' }), { target: { value: 'ben' } });
+    fireEvent.click(within(screen.getByRole('list', { name: 'People' })).getByRole('button', { name: /^Ben/ }));
+    expect(s.overlay()).toEqual({ type: 'conversation', chatId: 'ben' });
+    expect(row('Ben')).toBeInTheDocument();
+  });
+
+  it('the camera search button opens search too', () => {
+    renderMobile();
+    fireEvent.click(within(tabsNav()).getByRole('button', { name: 'Camera' }));
+    fireEvent.click(within(screen.getByTestId('camera')).getByRole('button', { name: 'Search' }));
+    expect(screen.getByRole('dialog', { name: 'Search' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    expect(screen.queryByRole('dialog', { name: 'Search' })).toBeNull();
+  });
+});
+
 describe('mobile bottom nav', () => {
   it('has 5 tab buttons and marks only the active one as the current page', () => {
     renderMobile();

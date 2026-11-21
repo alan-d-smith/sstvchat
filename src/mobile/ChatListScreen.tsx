@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { Avatar } from '../components/Avatar';
 import { Icon } from '../components/Icon';
 import { RadioPill } from '../components/RadioPill';
+import { SettingsSheet } from '../components/SettingsSheet';
 import { StartChat } from '../components/StartChat';
 import { useApp } from '../state/store';
 import { useFriends } from '../state/friendsContext';
@@ -9,6 +10,8 @@ import { addFriendsLabel, badgeText } from '../state/friends';
 import { ME } from '../types';
 import type { Person } from '../types';
 import { MobileChatRow } from './MobileChatRow';
+import { MoreMenu } from './MoreMenu';
+import { SearchScreen } from './SearchScreen';
 import './ChatListScreen.css';
 
 /** The user's own avatar before a name is claimed (profile button and the "My AI" chip). */
@@ -68,6 +71,10 @@ export function ChatListScreen() {
   const { incoming, openAdd, openNotices, unread } = useFriends();
   const [composing, setComposing] = useState(false);
   const [groupsOnly, setGroupsOnly] = useState(false);
+  const [composeGroup, setComposeGroup] = useState(false);
+  const [searching, setSearching] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const requests = incoming.length;
   const me: Person = self ? { id: self.id, name: self.name, seed: self.avatar, color: SELF.color } : SELF;
   return (
@@ -84,7 +91,7 @@ export function ChatListScreen() {
               <Avatar people={[me]} size={40} />
             </span>
           </button>
-          <button type="button" className="m-round" aria-label="Search">
+          <button type="button" className="m-round" aria-label="Search" aria-haspopup="dialog" onClick={() => setSearching(true)}>
             <Icon name="search" size={26} />
           </button>
         </div>
@@ -113,7 +120,14 @@ export function ChatListScreen() {
             <Icon name="add-friend" size={24} />
             {badgeText(requests) && <span className="m-round__badge" aria-hidden="true">{badgeText(requests)}</span>}
           </button>
-          <button type="button" className="m-round" aria-label="More">
+          <button
+            type="button"
+            className="m-round"
+            aria-label="More"
+            aria-haspopup="dialog"
+            aria-expanded={menuOpen}
+            onClick={() => setMenuOpen(true)}
+          >
             <Icon name="more" size={24} />
           </button>
         </div>
@@ -144,7 +158,36 @@ export function ChatListScreen() {
         <Icon name="compose" size={34} />
       </button>
 
-      {composing && <NewChatSheet onClose={() => setComposing(false)} />}
+      {composing && (
+        <NewChatSheet
+          group={composeGroup}
+          onClose={() => {
+            setComposing(false);
+            setComposeGroup(false);
+          }}
+        />
+      )}
+      {menuOpen && (
+        <MoreMenu
+          onClose={() => setMenuOpen(false)}
+          onNewChat={() => {
+            setMenuOpen(false);
+            setComposeGroup(false);
+            setComposing(true);
+          }}
+          onNewGroup={() => {
+            setMenuOpen(false);
+            setComposeGroup(true);
+            setComposing(true);
+          }}
+          onSettings={() => {
+            setMenuOpen(false);
+            setSettingsOpen(true);
+          }}
+        />
+      )}
+      {settingsOpen && <SettingsSheet onClose={() => setSettingsOpen(false)} />}
+      {searching && <SearchScreen onClose={() => setSearching(false)} />}
     </section>
   );
 }

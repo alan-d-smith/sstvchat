@@ -11,6 +11,7 @@ import { useFriends } from '../state/friendsContext';
 import { addFriendsLabel, badgeText } from '../state/friends';
 import { ME } from '../types';
 import type { Person } from '../types';
+import { SearchScreen } from './SearchScreen';
 import './CameraScreen.css';
 
 /** Own profile, for when the people map has no entry for ME (same seed as the chat list). */
@@ -55,8 +56,9 @@ export function CameraScreen() {
   const { incoming, openAdd, openNotices, unread } = useFriends();
   const requests = incoming.length;
   const me = people[ME] ?? SELF;
-  // Release the camera while the preview (or any overlay) covers this screen.
-  const cam = useCamera(overlay === null);
+  const [searching, setSearching] = useState(false);
+  // Release the camera while the preview, any other overlay or search covers this screen.
+  const cam = useCamera(overlay === null && !searching);
   const [filter, setFilter] = useState<SnapFilter>('none');
   const galleryRef = useRef<HTMLInputElement>(null);
 
@@ -111,7 +113,7 @@ export function CameraScreen() {
           <button type="button" className="cam__avatar" aria-label="My profile" onClick={openAccount}>
             <Avatar people={[me]} size={40} />
           </button>
-          <ToolButton icon="search" label="Search" className="cam__btn--search" />
+          <ToolButton icon="search" label="Search" className="cam__btn--search" onClick={() => setSearching(true)} />
         </div>
         <div className="cam__group">
           <button
@@ -200,6 +202,8 @@ export function CameraScreen() {
         <ToolButton icon="gamepad" label="Games" className="cam__btn--games" />
         <ToolButton icon="lens-sparkle" label="Lens explorer" className="cam__btn--explore" />
       </div>
+
+      {searching && <SearchScreen onClose={() => setSearching(false)} />}
     </div>
   );
 }
