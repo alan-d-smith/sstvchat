@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 import type { KeyboardEvent } from 'react';
 import { Icon } from './Icon';
 import { Logo } from './Logo';
+import { FSK } from '../audio/fsk';
 import './HowItWorks.css';
 
 // "How it works": an original illustration of a laptop sending a two-tone chat to a phone, with
@@ -234,7 +235,7 @@ function Scene({ t, still, titleId, descId }: SceneProps) {
       )}
       {(sounding || still) && (
         <text className={`hiw__hz${t >= T.show && !still ? ' is-off' : ''}`} x={226} y={189}>
-          1200 Hz / 2200 Hz
+          {FSK.mark} Hz / {FSK.space} Hz
         </text>
       )}
 

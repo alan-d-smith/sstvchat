@@ -131,7 +131,7 @@ const fake = vi.hoisted(() => {
 });
 
 vi.mock('./packet', () => ({ encodePacket: vi.fn(fake.encodePacket) }));
-vi.mock('./fsk', () => ({ fskModulate: vi.fn(fake.fskModulate), FskReceiver: fake.FskReceiver }));
+vi.mock('./fsk', () => ({ fskModulate: vi.fn(fake.fskModulate), FskReceiver: fake.FskReceiver, FSK_GUARD_HZ: [] }));
 vi.mock('./robot36', () => ({ robot36Modulate: vi.fn(fake.robot36Modulate), Robot36Receiver: fake.Robot36Receiver }));
 
 const RATE = 8000;

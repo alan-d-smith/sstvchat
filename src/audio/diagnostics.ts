@@ -2,7 +2,7 @@
 // meter with the power at the two FSK tones, and raw-mic recording to a 16-bit WAV. Read-only:
 // nothing here changes what the radio does.
 
-import { FSK } from './fsk';
+import { FSK, FSK_GUARD_HZ } from './fsk';
 import { robot36DurationMs } from './robot36';
 import type { AudioEngine } from './engine';
 
@@ -95,8 +95,8 @@ function toneAmplitude(x: Float32Array, rate: number, freq: number): number {
 
 export const dbfs = (amplitude: number) => (amplitude > 0 ? 20 * Math.log10(amplitude) : -Infinity);
 
-/** Bins away from both FSK tones, averaged for the noise floor. */
-export const FLOOR_HZ = [800, 1700, 2700];
+/** Bins away from both FSK tones (the receiver's guard bins), averaged for the noise floor. */
+export const FLOOR_HZ = FSK_GUARD_HZ;
 
 export interface InputLevels {
   rmsDb: number;
@@ -248,8 +248,8 @@ const TONE_OVER_FLOOR_DB = 15;
 const MIN_TONE_DB = -70;
 /** …and the two tones carrying a good share of all the energy (SSTV, speech, music do not). */
 const MIN_PURITY = 0.2;
-/** FSK alternates: each tone must lead in at least this share of a stretch's tone chunks (a bright
- * SSTV image sits on ~2200 Hz alone; a steady test tone is one tone). */
+/** FSK alternates: each tone must lead in at least this share of a stretch's tone chunks (a steady
+ * test tone is one tone). */
 const MIN_EACH_TONE = 0.15;
 
 const power = (db: number) => (Number.isFinite(db) ? 10 ** (db / 10) : 0);

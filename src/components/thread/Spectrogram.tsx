@@ -33,8 +33,8 @@ interface SpectrogramProps {
 }
 
 /**
- * Stand-in for a two-tone text that is still arriving: a live waterfall of the mic, 500–3000 Hz,
- * scrolling right to left, with the mark (1200 Hz) and space (2200 Hz) tones marked. Without live
+ * Stand-in for a two-tone text that is still arriving: a live waterfall of the mic around the two
+ * tones (LOW_HZ–HIGH_HZ), scrolling right to left, with the mark and space tones marked. Without live
  * mic audio (simulated receives, no radio) it draws plausible two-tone columns instead.
  */
 export function Spectrogram({ msgId, text = '' }: SpectrogramProps) {

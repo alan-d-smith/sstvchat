@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AppApi } from '../state/store';
 import type { AudioEngine } from '../audio/engine';
 import { createRadioDiag } from '../audio/diagnostics';
+import { FSK } from '../audio/fsk';
 
 const api = vi.hoisted(() => ({ current: null as unknown as AppApi }));
 vi.mock('../state/store', () => ({ useApp: () => api.current }));
@@ -94,12 +95,12 @@ describe('RadioDetails', () => {
     expect(panel).toHaveTextContent('alice → carol #k3f9');
     expect(panel).toHaveTextContent('ignored: not addressed to bob');
 
-    const tone = Float32Array.from({ length: 48000 }, (_, i) => 0.5 * Math.sin((2 * Math.PI * 1200 * i) / 48000));
+    const tone = Float32Array.from({ length: 48000 }, (_, i) => 0.5 * Math.sin((2 * Math.PI * FSK.mark * i) / 48000));
     act(() => {
       r.hear(tone);
       vi.advanceTimersByTime(250);
     });
-    expect(panel).toHaveTextContent(/1200 Hz-6\.0 dB/);
+    expect(panel).toHaveTextContent(new RegExp(`${FSK.mark} Hz-6\\.0 dB`));
     expect(panel).toHaveTextContent('1.0 s of mic audio at 48000 Hz');
   });
 

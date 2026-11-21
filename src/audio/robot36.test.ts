@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ROBOT36, Robot36Receiver, robot36DurationMs, robot36Modulate } from './robot36';
+import { FSK } from './fsk';
 
 // ---------------------------------------------------------------- helpers
 
@@ -173,25 +174,28 @@ describe('robot36', () => {
   });
 
   it('does not mistake noise followed by an FSK lead-in for a VIS header', () => {
-    const sr = 48000;
-    const rng = mulberry32(9);
-    const audio = new Float32Array(4 * sr);
-    let ph = 0;
-    let i = sr; // 1 s of noise only
-    const tone = (f: number, ms: number) => {
-      for (const end = i + (ms * sr) / 1000; i < end; i++) {
-        audio[i] = 0.3 * Math.sin(ph);
-        ph += (2 * Math.PI * f) / sr;
-      }
-    };
-    tone(1200, 300); // FSK lead-in (mark)
-    for (let b = 0; b < 200; b++) tone(rng() < 0.5 ? 1200 : 2200, 10);
-    for (let k = 0; k < audio.length; k++) audio[k] += 0.04 * gaussian(rng);
-    let starts = 0;
-    const rx = new Robot36Receiver(sr, { onStart: () => starts++ }, { visTimeoutMs: 60000 });
-    rx.push(audio);
-    expect(starts).toBe(0);
-    expect(rx.state).toBe('waiting-vis');
+    // The app's two tones, and 1200/2200 Hz (Bell 202-style FSK, whose mark is the VIS sync tone).
+    for (const [mark, space] of [[FSK.mark, FSK.space], [1200, 2200]]) {
+      const sr = 48000;
+      const rng = mulberry32(9);
+      const audio = new Float32Array(4 * sr);
+      let ph = 0;
+      let i = sr; // 1 s of noise only
+      const tone = (f: number, ms: number) => {
+        for (const end = i + (ms * sr) / 1000; i < end; i++) {
+          audio[i] = 0.3 * Math.sin(ph);
+          ph += (2 * Math.PI * f) / sr;
+        }
+      };
+      tone(mark, 300); // FSK lead-in (mark)
+      for (let b = 0; b < 200; b++) tone(rng() < 0.5 ? mark : space, 10);
+      for (let k = 0; k < audio.length; k++) audio[k] += 0.04 * gaussian(rng);
+      let starts = 0;
+      const rx = new Robot36Receiver(sr, { onStart: () => starts++ }, { visTimeoutMs: 60000 });
+      rx.push(audio);
+      expect(starts).toBe(0);
+      expect(rx.state).toBe('waiting-vis');
+    }
   });
 
   it('times out on silence after visTimeoutMs (default 8000)', () => {

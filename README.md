@@ -39,7 +39,7 @@ TypeScript that runs entirely in the browser.
 | | |
 |---|---|
 | 📸 **Snaps over SSTV** | Take a photo with the webcam or pick one from your gallery. Swipe the lens carousel to choose a filter (Normal, Mono or Warm). The snap is sent as a standard Robot36 SSTV transmission, so any SSTV decoder can read it. |
-| 💬 **Texts over two-tone FSK** | Chat messages are framed, checksummed and sent as 1200 / 2200 Hz audio. Incoming texts show a typing indicator from the moment their header is heard. |
+| 💬 **Texts over two-tone FSK** | Chat messages are framed, checksummed and sent as 3000 / 4000 Hz audio, above the band where voices are loud. Incoming texts show a typing indicator from the moment their header is heard. |
 | 🎯 **Header-first addressing** | Every transmission opens with a short two-tone header saying who it's from and to. A listening device accepts only what's addressed to its username, and records it automatically. |
 | 🎧 **Always-on receiver** | Once enabled, the microphone keeps listening. Snaps record in the background whichever chat you have open, and land only in the sender's chat. |
 | 💾 **Saved locally** | Chats, messages and received images persist in `localStorage`. A snap that has been received is never received again. |
@@ -55,7 +55,7 @@ TypeScript that runs entirely in the browser.
   Sender                                                            Receiver
  ┌──────────────┐    two-tone header      SSTV image (Robot36)    ┌──────────────┐
  │ type / snap  │ ─▶ "from alan to bea" ─▶ ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒ ─▶ │ mic (always  │
- │  → modulate  │    1200/2200 Hz FSK      1500–2300 Hz, ~37 s    │  on) → decode│
+ │  → modulate  │    3000/4000 Hz FSK      1500–2300 Hz, ~37 s    │  on) → decode│
  │  → speaker   │                                                 │  → chat      │
  └──────────────┘                                                 └──────────────┘
 ```
@@ -123,7 +123,7 @@ per-message identifier, so a device that hears the same transmission twice keeps
 
 | Parameter | Value |
 |---|---|
-| Mark / space | 1200 Hz / 2200 Hz |
+| Mark / space | 3000 Hz / 4000 Hz (above the speech band, so room chatter barely reaches them) |
 | Rate | 100 baud, UART 8-N-1, LSB first |
 | Lead-in / tail | 300 ms / 60 ms of mark |
 | Airtime | ≈ 0.36 s + 0.1 s per byte (texts are capped at 140 characters) |

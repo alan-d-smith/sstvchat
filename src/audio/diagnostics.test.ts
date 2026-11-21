@@ -36,13 +36,13 @@ function engineWithMic() {
 
 describe('measure', () => {
   it('reads the level of each FSK tone and a low floor for a clean mark tone', () => {
-    const m = measure(sine(1200, 0.5), RATE);
+    const m = measure(sine(FSK.mark, 0.5), RATE);
     expect(m.markDb).toBeCloseTo(-6.02, 0);
     expect(m.spaceDb).toBeLessThan(-50);
     expect(m.floorDb).toBeLessThan(-50);
     expect(m.peakDb).toBeCloseTo(-6.02, 0);
     expect(m.rmsDb).toBeCloseTo(-9.03, 0);
-    const s = measure(sine(2200, 0.1), RATE);
+    const s = measure(sine(FSK.space, 0.1), RATE);
     expect(s.spaceDb).toBeCloseTo(-20, 0);
     expect(s.markDb).toBeLessThan(-60);
   });
@@ -52,14 +52,14 @@ describe('input meter', () => {
   it('measures the same chunks the receiver gets and records them raw', async () => {
     const { engine, hear, listeners } = engineWithMic();
     const meter = createInputMeter(engine);
-    hear(sine(1200, 0.25, RATE));
+    hear(sine(FSK.mark, 0.25, RATE));
     const l = meter.levels();
     expect(l.markDb).toBeCloseTo(-12, 0);
     expect(l.seconds).toBeCloseTo(1, 2);
     expect(l.chunks).toBe(Math.ceil(RATE / 2048));
 
     const rec = meter.record(100);
-    const sig = sine(2200, 0.3, RATE / 5);
+    const sig = sine(FSK.space, 0.3, RATE / 5);
     hear(sig);
     const { samples, sampleRate } = await rec;
     expect(sampleRate).toBe(RATE);
@@ -212,7 +212,7 @@ describe('undecoded-tone watch', () => {
     gray.data.fill(128);
     const white = new ImageData(320, 240);
     white.data.fill(255);
-    const light = new ImageData(320, 240); // luma ≈ 2197 Hz: right on the space tone
+    const light = new ImageData(320, 240); // luma ≈ 2197 Hz: one steady tone
     light.data.fill(240);
     for (const im of [img, gray, white, light]) w.hear(room(robot36Modulate(im, RATE).subarray(0, RATE * 8)));
     const voice = Float32Array.from({ length: RATE * 3 }, (_, i) => 0.4 * Math.sin(i * 0.037 + 3 * Math.sin(i * 0.0007)) * Math.abs(Math.sin(i * 0.0004)));

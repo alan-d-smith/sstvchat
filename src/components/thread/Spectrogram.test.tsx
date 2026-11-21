@@ -4,6 +4,7 @@ import type { Mock } from 'vitest';
 import type { Message as Msg } from '../../types';
 import { Message } from './Message';
 import { Spectrogram } from './Spectrogram';
+import { FSK } from '../../audio/fsk';
 
 const api = vi.hoisted(() => ({
   current: {} as Record<string, unknown>,
@@ -38,7 +39,7 @@ describe('Spectrogram', () => {
     expect(api.current.onMicSamples).toHaveBeenCalledTimes(1);
     expect(listeners.size).toBe(1);
     // Chunks are analysed without throwing (jsdom has no canvas to draw on).
-    for (const fn of listeners) for (let i = 0; i < 4; i++) fn(tone(1200));
+    for (const fn of listeners) for (let i = 0; i < 4; i++) fn(tone(FSK.mark));
     unmount();
     expect(off).toHaveBeenCalledTimes(1);
     expect(listeners.size).toBe(0);
@@ -72,8 +73,8 @@ describe('Spectrogram', () => {
 
   it('marks the two tones and counts the characters so far', () => {
     render(<Spectrogram msgId="rx1" text="on my" />);
-    expect(screen.getByText('1200 Hz')).toBeInTheDocument();
-    expect(screen.getByText('2200 Hz')).toBeInTheDocument();
+    expect(screen.getByText(`${FSK.mark} Hz`)).toBeInTheDocument();
+    expect(screen.getByText(`${FSK.space} Hz`)).toBeInTheDocument();
     expect(screen.getByText('5 chars')).toBeInTheDocument();
     expect(screen.queryByText('on my')).not.toBeInTheDocument();
   });

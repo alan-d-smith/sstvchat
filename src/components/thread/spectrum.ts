@@ -1,12 +1,13 @@
 // Maths behind the receiving-text spectrogram: a small radix-2 FFT, the live analyser that turns
-// mic chunks into normalised 500–3000 Hz columns, and a synthetic two-tone generator for receives
-// that are only simulated (demo panel, mock chats). Buffers are allocated once, never per frame.
+// mic chunks into normalised columns around the two FSK tones, and a synthetic two-tone generator
+// for receives that are only simulated (demo panel, mock chats). Buffers are allocated once, never
+// per frame.
 
 import { FSK } from '../../audio/fsk';
 
-/** Frequency span shown, bottom to top. */
-export const LOW_HZ = 500;
-export const HIGH_HZ = 3000;
+/** Frequency span shown, bottom to top: the two tones with one tone spacing of room either side. */
+export const LOW_HZ = FSK.mark - (FSK.space - FSK.mark);
+export const HIGH_HZ = FSK.space + (FSK.space - FSK.mark);
 /** Rows per column; row 0 is HIGH_HZ (top), row GRID - 1 is LOW_HZ (bottom). */
 export const GRID = 96;
 
@@ -192,8 +193,8 @@ const BIT_RING = 256;
 const TONE_SIGMA_HZ = 78;
 
 /**
- * Plausible two-tone columns for simulated receives: UART-framed bytes (start 0 = space 2200 Hz,
- * 8 data bits, stop 1 = mark 1200 Hz) at 100 baud with idle-mark pauses and a light noise floor,
+ * Plausible two-tone columns for simulated receives: UART-framed bytes (start 0 = space tone,
+ * 8 data bits, stop 1 = mark tone) at 100 baud with idle-mark pauses and a light noise floor,
  * normalised like ColumnAnalyser's output.
  */
 export class SynthFsk {

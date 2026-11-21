@@ -1,11 +1,23 @@
-// Two-tone (binary FSK) modem: mark 1200 Hz = 1, space 2200 Hz = 0, 100 baud, UART framing.
+// Two-tone (binary FSK) modem: mark 3000 Hz = 1, space 4000 Hz = 0, 100 baud, UART framing. The
+// tones sit above the speech-dominant band (crowd chatter falls ~7 dB/octave above 1 kHz), where
+// phone and laptop speakers are efficient; they stay well under 5 kHz for cheap speakers.
 // See docs/superpowers/specs/2026-11-21-audio-transport-design.md ("Two-tone FSK").
 import { PacketParser, type PacketEvents } from './packet';
 
-export const FSK = { mark: 1200, space: 2200, baud: 100, leadInMs: 300, tailMs: 60 } as const;
+/** The FSK tones, rate and framing: the one place they are defined. */
+export const FSK = { mark: 3000, space: 4000, baud: 100, leadInMs: 300, tailMs: 60 } as const;
 export interface FskEvents extends PacketEvents {
   onAbort?(): void;
 }
+
+/**
+ * Noise-floor ("guard") frequencies: half the tone spacing below mark, between the tones and above
+ * space, on the baud grid so a steady tone leaks nothing into them over one bit.
+ */
+export const FSK_GUARD_HZ = (() => {
+  const half = Math.max(1, Math.round((FSK.space - FSK.mark) / 2 / FSK.baud)) * FSK.baud;
+  return [FSK.mark - half, FSK.mark + half, FSK.space + half];
+})();
 
 const FADE_MS = 5;
 const BITS_PER_BYTE = 10; // start + 8 data + stop

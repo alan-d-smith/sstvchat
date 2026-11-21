@@ -75,7 +75,7 @@ function reverb(sig: Float32Array, rate: number, seed: number, rt60 = 0.3, drDb 
   return y;
 }
 
-/** First-difference tilt: attenuates 1200 Hz relative to 2200 Hz by ~4 dB per stage. */
+/** First-difference tilt (a small speaker's rising response): lifts space over mark by a few dB per stage. */
 function tilt(sig: Float32Array, stages: number): Float32Array {
   let x = sig;
   for (let s = 0; s < stages; s++) {

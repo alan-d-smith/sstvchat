@@ -407,7 +407,7 @@ export class Robot36Receiver {
   private checkVis(t: number): boolean {
     const u = this.u;
     // Leader: the 1 ms blocks must agree (noise demodulates to ~1900 Hz on average, but
-    // scattered), so noise followed by the FSK 1200 Hz lead-in is not mistaken for a VIS.
+    // scattered), so noise followed by a two-tone lead-in is not mistaken for a VIS.
     const lead0 = t - 295 * u;
     if (Math.abs(this.mean(lead0, t - 5 * u) - F_LEADER) > 60) return false;
     if (this.toneFraction(lead0, 290, F_LEADER, 150) < 0.6) return false;

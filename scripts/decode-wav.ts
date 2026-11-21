@@ -5,7 +5,7 @@
 //   node scripts/decode-wav.ts <file.wav> [--self bob] [--levels] [--no-scan] [--channel 0]
 //
 //   --self      say what a device claimed as this username would do with each packet
-//   --levels    print RMS / 1200 Hz / 2200 Hz / noise floor every 100 ms (spot AGC or noise
+//   --levels    print RMS / mark / space tone / noise floor every 100 ms (spot AGC or noise
 //               suppression eating the tones: a steady tone that fades within ~0.5 s)
 //   --no-scan   skip the independent SSTV scan (VIS search over the whole file)
 // Snap images are written next to the WAV as <file>.snapN.bmp (portrait, as shown in the app).
@@ -36,7 +36,7 @@ if (!file) {
 }
 
 const load = async (id: string): Promise<AnyRecord> => (await runnerImport(id, { configFile: false, logLevel: 'silent' })).module as AnyRecord;
-const { FskReceiver } = await load('./src/audio/fsk.ts');
+const { FSK, FskReceiver } = await load('./src/audio/fsk.ts');
 const { Robot36Receiver } = await load('./src/audio/robot36.ts');
 const { measure } = await load('./src/audio/diagnostics.ts');
 const { VIS_TIMEOUT_MS } = await load('./src/audio/audioTransport.ts');
@@ -211,7 +211,7 @@ for (pos = 0; pos < x.length; ) {
     const w = x.subarray(pos, Math.min(x.length, pos + Math.round(rate * 0.1)));
     const m = measure(w, rate);
     const f = (v: number) => (Number.isFinite(v) ? v.toFixed(1) : '-inf').padStart(6);
-    say(`level  rms ${f(m.rmsDb)}  1200Hz ${f(m.markDb)}  2200Hz ${f(m.spaceDb)}  floor ${f(m.floorDb)}  dBFS`);
+    say(`level  rms ${f(m.rmsDb)}  ${FSK.mark}Hz ${f(m.markDb)}  ${FSK.space}Hz ${f(m.spaceDb)}  floor ${f(m.floorDb)}  dBFS`);
     nextLevel += Math.round(rate * 0.1);
   }
   if (mode === 'sstv' && sstv) sstv.push(chunk);

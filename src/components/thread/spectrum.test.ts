@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { FSK } from '../../audio/fsk';
-import { ColumnAnalyser, Fft, GRID, SynthFsk, buildColorMap, hzToTop, magnitudeSpectrum, parseRgb } from './spectrum';
+import { ColumnAnalyser, Fft, GRID, HIGH_HZ, LOW_HZ, SynthFsk, buildColorMap, hzToTop, magnitudeSpectrum, parseRgb } from './spectrum';
 import { SpectrogramView } from './waterfall';
 
 const sine = (hz: number, rate: number, n: number, amp = 1) =>
@@ -12,7 +12,7 @@ const argmax = (a: ArrayLike<number>) => {
   return best;
 };
 
-/** Grid row a frequency falls on (row 0 = top = 3000 Hz). */
+/** Grid row a frequency falls on (row 0 = top = HIGH_HZ). */
 const rowOf = (hz: number) => Math.round(hzToTop(hz) * (GRID - 1));
 
 describe('Fft', () => {
@@ -80,8 +80,8 @@ describe('SynthFsk', () => {
     for (let i = 0; i < 400; i++) {
       s.next(col);
       seen.add(argmax(col));
-      expect(col[rowOf(500)]).toBeLessThan(0.2);
-      expect(col[rowOf(3000)]).toBeLessThan(0.2);
+      expect(col[rowOf(LOW_HZ)]).toBeLessThan(0.2);
+      expect(col[rowOf(HIGH_HZ)]).toBeLessThan(0.2);
     }
     const near = (row: number, hz: number) => Math.abs(row - rowOf(hz)) <= 1;
     for (const row of seen) expect(near(row, FSK.mark) || near(row, FSK.space)).toBe(true);
