@@ -28,9 +28,12 @@ function mockMedia(mobile: boolean) {
 
 /** Exposes store state so tests can assert on it without reaching into components. */
 let demoIncoming: AppApi['demoIncoming'];
+let syncGroups: ReturnType<typeof useApp>['syncGroups'];
+
 function Probe() {
   const { tab, overlay, ...rest } = useApp();
   demoIncoming = rest.demoIncoming;
+  syncGroups = rest.syncGroups;
   return <output data-testid="probe" data-tab={tab} data-overlay={JSON.stringify(overlay)} />;
 }
 
@@ -84,7 +87,10 @@ describe('mobile chat list', () => {
   });
 
   it('the Groups chip toggles a group-chats-only filter', () => {
+    document.cookie = 'sstv_user=alan; path=/'; // groups only sync for a signed-in user
     renderMobile();
+    // The shipped data has no groups any more: add one the way the server sync would.
+    act(() => { syncGroups([{ id: 'g_roomies01', title: 'Roomies', members: ['alan', 'ben', 'jen'], createdBy: 'ben', createdAt: 0 }], false); });
     const groups = within(screen.getByRole('group', { name: 'Filters' })).getByRole('button', { name: 'Groups' });
     expect(groups).toHaveAttribute('aria-pressed', 'false');
     fireEvent.click(groups);
