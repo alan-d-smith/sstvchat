@@ -5,8 +5,9 @@ import { json, RedisNotConfigured, redisStore } from './_redis.js';
 // Node.js runtime (the default for api/*.ts): scrypt and timingSafeEqual come from node:crypto.
 
 /**
- * POST /api/claim { name, token, password?, avatar? } → 200 claimed / ours / recovered with the
- * password · 400 bad input · 401 wrong password · 409 taken · 429 too many password guesses.
+ * POST /api/claim { mode?: 'signup' | 'login', name, token, password?, avatar? }
+ * signup → 200 claimed / ours · 409 taken. login → 200 { name, avatar } · 404 no such user ·
+ * 409 no password set · 401 wrong password · 429 too many password guesses. Both: 400 bad input.
  */
 export async function POST(request: Request): Promise<Response> {
   let body: unknown;

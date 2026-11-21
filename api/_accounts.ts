@@ -63,15 +63,26 @@ export function credentials(input: Record<string, unknown>): { name: string; tok
 export const owns = (record: unknown, token: string) => asRecord(record)?.token === token;
 
 /**
- * POST /api/claim { name, token, password?, avatar? }
- * - 200: the name was free (claimed with SET NX), or this token already holds it, or the right
- *   password was given (the stored token is replaced, so this device now holds it).
- * - 400 bad name/token · 401 wrong password · 409 taken (no password given, or none set) ·
- *   429 more than MAX_GUESSES password guesses for the name in GUESS_WINDOW_S.
- * On 200 an integer `avatar` seed is stored as `avatar:<name>`.
+ * POST /api/claim { mode?, name, token, password?, avatar? } — `mode` is 'signup' (default) or 'login'.
+ *
+ * signup:
+ * - 200 { name }: the name was free (claimed with SET NX as { token, pw }), or this token already
+ *   holds it. An integer `avatar` seed is stored as `avatar:<name>`.
+ * - 409 'taken': someone else holds it (even with the right password: that is a login).
+ *
+ * login (moves a name to this device; the stored avatar is kept and returned):
+ * - 200 { name, avatar }: this token already holds it, or the right password was given (the stored
+ *   token is replaced, so the old device no longer holds it). `avatar` is null when none was picked.
+ * - 404 'no-such-user' · 409 'no-password': the name has no password, so only its device can use it ·
+ *   401 'wrong-password' · 429 'too-many-tries': more than MAX_GUESSES guesses for the name in
+ *   GUESS_WINDOW_S.
+ *
+ * Both: 400 bad mode/name/token/password.
  */
 export async function claim(store: AccountStore, passwords: Passwords, input: unknown): Promise<Result> {
-  const { name, token, password, avatar } = (input && typeof input === 'object' ? input : {}) as Record<string, unknown>;
+  const { mode = 'signup', name, token, password, avatar } =
+    (input && typeof input === 'object' ? input : {}) as Record<string, unknown>;
+  if (mode !== 'signup' && mode !== 'login') return { status: 400, body: { error: 'invalid-mode' } };
   const n = typeof name === 'string' ? name.trim().toLowerCase() : '';
   if (!NAME_RE.test(n)) return { status: 400, body: { error: 'invalid-name' } };
   if (typeof token !== 'string' || token.length < 8 || token.length > 128) {
@@ -81,23 +92,35 @@ export async function claim(store: AccountStore, passwords: Passwords, input: un
     return { status: 400, body: { error: 'invalid-password' } };
   }
   const pw = password ? password : null;
-
   const key = `user:${n}`;
+
+  if (mode === 'login') return login(store, passwords, n, token, pw);
+
   const fresh: UserRecord = { token, pw: pw ? await passwords.hash(pw) : null };
-  if (!(await store.setNx(key, fresh))) {
-    const cur = asRecord(await store.get(key));
-    if (cur?.token !== token) {
-      if (!pw || !cur?.pw) return { status: 409, body: { error: 'taken' } };
-      const failKey = `pwfail:${n}`;
-      const guesses = await store.incr(failKey);
-      if (guesses === 1) await store.expire(failKey, GUESS_WINDOW_S);
-      if (guesses > MAX_GUESSES) return { status: 429, body: { error: 'too-many-tries' } };
-      if (!(await passwords.verify(pw, cur.pw))) return { status: 401, body: { error: 'wrong-password' } };
-      await store.set(key, { token, pw: cur.pw } satisfies UserRecord);
-    }
+  if (!(await store.setNx(key, fresh)) && asRecord(await store.get(key))?.token !== token) {
+    return { status: 409, body: { error: 'taken' } };
   }
   if (isSeed(avatar)) await store.set(`avatar:${n}`, avatar);
   return { status: 200, body: { name: n } };
+}
+
+async function login(store: AccountStore, passwords: Passwords, n: string, token: string, pw: string | null): Promise<Result> {
+  const key = `user:${n}`;
+  const cur = asRecord(await store.get(key));
+  if (!cur) return { status: 404, body: { error: 'no-such-user' } };
+  if (cur.token !== token) {
+    if (!cur.pw) return { status: 409, body: { error: 'no-password' } };
+    if (!pw) return { status: 401, body: { error: 'wrong-password' } };
+    const failKey = `pwfail:${n}`;
+    const guesses = await store.incr(failKey);
+    if (guesses === 1) await store.expire(failKey, GUESS_WINDOW_S);
+    if (guesses > MAX_GUESSES) return { status: 429, body: { error: 'too-many-tries' } };
+    if (!(await passwords.verify(pw, cur.pw))) return { status: 401, body: { error: 'wrong-password' } };
+    await store.set(key, { token, pw: cur.pw } satisfies UserRecord);
+  }
+  const raw = await store.get(`avatar:${n}`);
+  const seed = Number(raw);
+  return { status: 200, body: { name: n, avatar: raw != null && isSeed(seed) ? seed : null } };
 }
 
 /** GET /api/users: every claimed name with its avatar seed (null when none was picked). */

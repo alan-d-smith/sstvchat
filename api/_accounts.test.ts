@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { GUESS_WINDOW_S, claim, memoryStore, users } from './_accounts.js';
-import type { Passwords } from './_accounts.js';
+import type { Passwords, Result } from './_accounts.js';
 import { scryptPasswords } from './_password.js';
 
 /** Fast stand-in for scrypt so the flow tests stay quick; scrypt itself is tested at the end. */
@@ -36,41 +36,91 @@ describe('claim', () => {
     expect(await store.get('avatar:alan')).toBe(2);
   });
 
-  it('409s another device when no password is given or none is set', async () => {
+  it('409s a signup for a name another device holds, even with its password', async () => {
     const { store, post } = setup();
     await post({ name: 'nopw', token: A });
     await post({ name: 'haspw', token: A, password: 'secret' });
-    expect((await post({ name: 'nopw', token: B, password: 'anything', avatar: 3 })).status).toBe(409);
-    expect((await post({ name: 'haspw', token: B })).status).toBe(409);
-    expect((await post({ name: 'haspw', token: B, password: '' })).status).toBe(409);
+    expect(await post({ name: 'nopw', token: B, password: 'anything', avatar: 3 })).toEqual({ status: 409, body: { error: 'taken' } });
+    expect((await post({ mode: 'signup', name: 'haspw', token: B })).status).toBe(409);
+    expect((await post({ name: 'haspw', token: B, password: 'secret', avatar: 4 })).status).toBe(409);
+    expect(await store.get('user:haspw')).toEqual({ token: A, pw: 'plain$secret' });
     expect(await store.get('avatar:nopw')).toBeNull();
+    expect(await store.get('avatar:haspw')).toBeNull();
+    expect(await store.get('pwfail:haspw')).toBeNull();
+  });
+});
+
+describe('login', () => {
+  const login = (post: (b: unknown) => Promise<Result>, body: Record<string, unknown>) => post({ mode: 'login', ...body });
+
+  it('404s a name nobody holds', async () => {
+    const { store, post } = setup();
+    expect(await login(post, { name: 'ghost', token: B, password: 'x' })).toEqual({ status: 404, body: { error: 'no-such-user' } });
+    expect(await store.userKeys()).toEqual([]);
+  });
+
+  it('moves the name to a new device with the right password and returns the stored avatar', async () => {
+    const { store, post } = setup();
+    await post({ name: 'bea', token: A, password: 'secret', avatar: 9 });
+    expect(await login(post, { name: 'bea', token: B, password: 'nope' })).toEqual({ status: 401, body: { error: 'wrong-password' } });
+    expect(await login(post, { name: ' BEA', token: B, password: 'secret', avatar: 2 }))
+      .toEqual({ status: 200, body: { name: 'bea', avatar: 9 } });
+    expect(await store.get('user:bea')).toEqual({ token: B, pw: 'plain$secret' });
+    expect(await store.get('avatar:bea')).toBe(9); // a login never overwrites the avatar
+    // The old device no longer holds it (and a signup cannot take it back).
+    expect((await post({ name: 'bea', token: A })).status).toBe(409);
+    expect((await login(post, { name: 'bea', token: A })).status).toBe(401);
+  });
+
+  it('returns a null avatar when none was picked, and lets the holding device log in without a password', async () => {
+    const { post } = setup();
+    await post({ name: 'zed', token: A });
+    expect(await login(post, { name: 'zed', token: A })).toEqual({ status: 200, body: { name: 'zed', avatar: null } });
+  });
+
+  it('409s a name without a password: only its own device can use it', async () => {
+    const { store, post } = setup();
+    await post({ name: 'nopw', token: A });
+    expect(await login(post, { name: 'nopw', token: B, password: 'anything' })).toEqual({ status: 409, body: { error: 'no-password' } });
+    expect(await store.get('user:nopw')).toEqual({ token: A, pw: null });
     expect(await store.get('pwfail:nopw')).toBeNull();
   });
 
-  it('hands the name to a new device with the right password, 401s a wrong one', async () => {
+  it('401s a missing password without counting it as a guess', async () => {
     const { store, post } = setup();
     await post({ name: 'bea', token: A, password: 'secret' });
-    expect(await post({ name: 'bea', token: B, password: 'nope' })).toEqual({ status: 401, body: { error: 'wrong-password' } });
-    expect(await post({ name: 'bea', token: B, password: 'secret', avatar: 9 })).toEqual({ status: 200, body: { name: 'bea' } });
-    expect(await store.get('user:bea')).toEqual({ token: B, pw: 'plain$secret' });
-    expect(await store.get('avatar:bea')).toBe(9);
-    // The old device no longer holds it.
-    expect((await post({ name: 'bea', token: A })).status).toBe(409);
+    expect((await login(post, { name: 'bea', token: B })).status).toBe(401);
+    expect((await login(post, { name: 'bea', token: B, password: '' })).status).toBe(401);
+    expect(await store.get('pwfail:bea')).toBeNull();
   });
 
   it('allows 5 password guesses per name per 15 minutes, then 429s', async () => {
     const { post, wait } = setup();
     await post({ name: 'bea', token: A, password: 'secret' });
-    for (let i = 0; i < 5; i++) expect((await post({ name: 'bea', token: B, password: `x${i}` })).status).toBe(401);
-    expect(await post({ name: 'bea', token: B, password: 'secret' })).toEqual({ status: 429, body: { error: 'too-many-tries' } });
+    for (let i = 0; i < 5; i++) expect((await login(post, { name: 'bea', token: B, password: `x${i}` })).status).toBe(401);
+    expect(await login(post, { name: 'bea', token: B, password: 'secret' })).toEqual({ status: 429, body: { error: 'too-many-tries' } });
     wait(GUESS_WINDOW_S - 1);
-    expect((await post({ name: 'bea', token: B, password: 'secret' })).status).toBe(429);
+    expect((await login(post, { name: 'bea', token: B, password: 'secret' })).status).toBe(429);
     wait(1);
-    expect((await post({ name: 'bea', token: B, password: 'secret' })).status).toBe(200);
+    expect((await login(post, { name: 'bea', token: B, password: 'secret' })).status).toBe(200);
   });
 
-  it('400s names outside ^[a-z0-9_]{2,12}$, bad tokens and non-string passwords', async () => {
+  it('logging out is a token change: the old token is refused, the password brings the name back', async () => {
+    const { post } = setup();
+    const C = 'device-a-rotated';
+    await post({ name: 'alan', token: A, password: 'pw', avatar: 5 });
+    // The device forgets the session and rotates its token to C.
+    expect((await post({ name: 'alan', token: C, avatar: 1 })).status).toBe(409);
+    expect(await login(post, { name: 'alan', token: C, password: 'pw' })).toEqual({ status: 200, body: { name: 'alan', avatar: 5 } });
+    expect((await post({ name: 'alan', token: A, avatar: 2 })).status).toBe(409);
+  });
+});
+
+describe('claim input', () => {
+  it('400s unknown modes, names outside ^[a-z0-9_]{2,12}$, bad tokens and non-string passwords', async () => {
     const { store, post } = setup();
+    expect(await post({ mode: 'recover', name: 'ok', token: A })).toEqual({ status: 400, body: { error: 'invalid-mode' } });
+    expect((await post({ mode: 'login', name: 'a', token: A, password: 'x' })).status).toBe(400);
     for (const name of ['a', 'thirteen_char', 'two words', 'émile', '', 42]) {
       expect((await post({ name, token: A })).status).toBe(400);
     }
