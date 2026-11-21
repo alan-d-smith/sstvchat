@@ -147,6 +147,13 @@ export function FriendsProvider({ children }: { children: ReactNode }) {
       showToast({ kind: 'accepted', who: [last], text, chatId });
       systemNotify(text);
     }
+    if (news.removed.length) {
+      pushNotices(owner, 'removed', news.removed);
+      const last = news.removed[news.removed.length - 1];
+      const text = noticeText({ kind: 'removed', name: last.name });
+      showToast({ kind: 'removed', who: [last], text });
+      systemNotify(text, () => setAddOpen(true));
+    }
     if (news.added.length) {
       pushNotices(owner, 'request', news.added);
       const text = addedText(news.added.map((e) => e.name));
@@ -266,6 +273,10 @@ export function FriendsProvider({ children }: { children: ReactNode }) {
       if (r.state === 'requested' && !memory.outgoing.includes(other)) {
         // So their accepting is announced even if they beat the next poll.
         saveMemory(owner, { ...memory, outgoing: [...memory.outgoing, other] });
+      }
+      if (r.state !== 'friends' && memory.friends?.includes(other)) {
+        // We ended it (remove/decline): don't announce it back to ourselves as "removed you".
+        saveMemory(owner, { ...(loadMemory(owner) ?? memory), friends: memory.friends.filter((n) => n !== other) });
       }
       if (r.state === 'friends') ensureChat(other);
     }

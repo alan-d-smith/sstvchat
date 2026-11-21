@@ -13,7 +13,7 @@ import './FriendsLayer.css';
  */
 export function FriendToast({ onChat }: { onChat(chatId: string): void }) {
   const { toast, dismissToast, openAdd } = useFriends();
-  const toChat = toast && toast.kind !== 'request' && toast.chatId;
+  const toChat = toast && toast.kind !== 'request' && toast.kind !== 'removed' && toast.chatId;
   const view = () => {
     if (!toast) return;
     dismissToast();
@@ -86,7 +86,7 @@ export function NotificationsSheet({ onChat }: { onChat(chatId: string): void })
                 className={`notices__item${n.read ? '' : ' is-unread'}`}
                 onClick={() => {
                   closeNotices();
-                  if (n.kind === 'request') {
+                  if (n.kind === 'request' || n.kind === 'removed') {
                     openAdd();
                   } else {
                     const id = startChat(n.name);

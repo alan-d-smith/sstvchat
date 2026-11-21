@@ -78,13 +78,16 @@ export async function postFriend(action: FriendAction, name: string, token: stri
 /* ---------- what is news ---------- */
 
 /** Per user: incoming requests already announced, and our outgoing requests at the last poll. */
-export interface FriendMemory { seen: string[]; outgoing: string[] }
+/** `friends` is absent in memories saved before removals were tracked: then nothing counts as removed. */
+export interface FriendMemory { seen: string[]; outgoing: string[]; friends?: string[] }
 
 export interface FriendNews {
   /** Incoming requests not announced before. */
   added: FriendEntry[];
   /** People we had asked who are now friends. */
   accepted: FriendEntry[];
+  /** Friends at the last poll who are no longer friends (they removed us). */
+  removed: FriendEntry[];
   /** Memory to keep for the next poll. */
   memory: FriendMemory;
 }
@@ -99,7 +102,14 @@ export function friendNews(prev: FriendMemory | null, next: FriendLists): Friend
   return {
     added: next.incoming.filter((e) => !seen.has(e.name)),
     accepted: next.friends.filter((e) => asked.has(e.name)),
-    memory: { seen: next.incoming.map((e) => e.name), outgoing: next.outgoing.map((e) => e.name) },
+    removed: (prev?.friends ?? [])
+      .filter((name) => !next.friends.some((e) => e.name === name))
+      .map((name) => ({ name, avatar: null })),
+    memory: {
+      seen: next.incoming.map((e) => e.name),
+      outgoing: next.outgoing.map((e) => e.name),
+      friends: next.friends.map((e) => e.name),
+    },
   };
 }
 
@@ -138,7 +148,7 @@ export function saveMemory(user: string, memory: FriendMemory): void {
 
 export interface FriendNotice {
   id: string;
-  kind: 'request' | 'accepted';
+  kind: 'request' | 'accepted' | 'removed';
   name: string;
   avatar: number | null;
   /** Epoch ms. */
@@ -149,7 +159,9 @@ export interface FriendNotice {
 export const MAX_NOTICES = 30;
 
 export const noticeText = (n: Pick<FriendNotice, 'kind' | 'name'>) =>
-  n.kind === 'request' ? `${n.name} added you` : `${n.name} accepted your request`;
+  n.kind === 'request' ? `${n.name} added you`
+    : n.kind === 'removed' ? `${n.name} removed you as a friend`
+    : `${n.name} accepted your request`;
 
 /** "alan added you", "alan and bea added you", "alan and 2 others added you". */
 export function addedText(names: string[]): string {
