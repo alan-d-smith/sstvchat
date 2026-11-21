@@ -150,18 +150,21 @@
   line-height: 0;
 }
 
-.m-chip__count {
-  display: grid;
-  place-items: center;
-  min-width: 18px;
-  height: 18px;
-  margin-left: -1.5px;
-  padding: 0 5px;
-  border-radius: 9px;
+/* A filter that is on (Groups): a pill behind the label, without moving its neighbours. */
+.m-chip[aria-pressed='true'] {
+  margin: 0 -12px;
+  padding: 0 12px;
+  border-radius: 16px;
   background: var(--text);
   color: var(--bg);
-  font-size: 11px;
-  font-weight: 700;
+}
+
+.m-chats__empty {
+  margin: 0;
+  padding: 24px 20px;
+  color: var(--text-2);
+  font-size: 15px;
+  text-align: center;
 }
 
 .m-chats__list {

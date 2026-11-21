@@ -75,11 +75,24 @@ describe('mobile chat list', () => {
     renderMobile();
     expect(screen.getByRole('heading', { name: 'Chat' })).toBeInTheDocument();
     const chips = screen.getByRole('group', { name: 'Filters' });
-    for (const chip of ['My AI', 'Flashbacks', 'Groups', 'Near me', 'Best Friends']) {
-      expect(within(chips).getByText(chip)).toBeInTheDocument();
+    expect(within(chips).getAllByRole('button').map((b) => b.textContent)).toEqual(['My AI', 'Groups']);
+    for (const gone of ['Flashbacks', 'Near me', 'Best Friends']) {
+      expect(screen.queryByText(gone)).toBeNull();
     }
     const addFriend = screen.getByRole('button', { name: 'Add friends' });
     expect(addFriend.querySelector('.m-round__badge')).toBeNull();
+  });
+
+  it('the Groups chip toggles a group-chats-only filter', () => {
+    renderMobile();
+    const groups = within(screen.getByRole('group', { name: 'Filters' })).getByRole('button', { name: 'Groups' });
+    expect(groups).toHaveAttribute('aria-pressed', 'false');
+    fireEvent.click(groups);
+    expect(groups).toHaveAttribute('aria-pressed', 'true');
+    expect(row('Roomies')).toBeInTheDocument();
+    expect(screen.queryByText('Beatriz M', { selector: '.m-row__name' })).toBeNull();
+    fireEvent.click(groups);
+    expect(screen.getByText('Beatriz M', { selector: '.m-row__name' })).toBeInTheDocument();
   });
 
   it('lists every chat with its status line', () => {
@@ -147,17 +160,28 @@ describe('mobile bottom nav', () => {
     expect(current[0]).toHaveAccessibleName('Chat');
   });
 
-  it('switches tabs and shows a placeholder for map, stories and spotlight', () => {
+  it('switches tabs and shows an under-construction note for map, stories and spotlight', () => {
     const s = renderMobile();
     for (const name of ['Map', 'Stories', 'Spotlight']) {
       fireEvent.click(within(tabsNav()).getByRole('button', { name }));
       expect(s.tab()).toBe(name.toLowerCase());
       expect(screen.getByRole('heading', { name })).toBeInTheDocument();
+      const screenEl = screen.getByRole('region', { name });
+      expect(within(screenEl).getByText('Under construction')).toBeInTheDocument();
+      expect(within(screenEl).getByText(/still building this.*Chat and Camera tabs/)).toBeInTheDocument();
       expect(screen.queryByRole('heading', { name: 'Chat' })).toBeNull();
       expect(within(tabsNav()).getByRole('button', { name })).toHaveAttribute('aria-current', 'page');
       expect(within(tabsNav()).getByRole('button', { name: 'Chat' })).not.toHaveAttribute('aria-current');
     }
     fireEvent.click(within(tabsNav()).getByRole('button', { name: 'Chat' }));
+    expect(screen.getByRole('heading', { name: 'Chat' })).toBeInTheDocument();
+  });
+
+  it('"Go to Chat" on an unbuilt tab goes back to the chat list', () => {
+    const s = renderMobile();
+    fireEvent.click(within(tabsNav()).getByRole('button', { name: 'Stories' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Go to Chat' }));
+    expect(s.tab()).toBe('chat');
     expect(screen.getByRole('heading', { name: 'Chat' })).toBeInTheDocument();
   });
 });

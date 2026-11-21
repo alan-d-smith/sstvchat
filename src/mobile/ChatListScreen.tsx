@@ -62,14 +62,12 @@ export function NewChatSheet({ onClose, group = false }: { onClose(): void; grou
   );
 }
 
-const CHIPS = ['Flashbacks', 'Groups', 'Near me', 'Best Friends'];
-const FLASHBACKS = 4;
-
 /** Mobile Chat tab: top bar, filter chips, chat rows and the compose button. */
 export function ChatListScreen() {
   const { chats, self, openAccount } = useApp();
   const { incoming, openAdd, openNotices, unread } = useFriends();
   const [composing, setComposing] = useState(false);
+  const [groupsOnly, setGroupsOnly] = useState(false);
   const requests = incoming.length;
   const me: Person = self ? { id: self.id, name: self.name, seed: self.avatar, color: SELF.color } : SELF;
   return (
@@ -129,16 +127,14 @@ export function ChatListScreen() {
             </span>
             <span>My AI</span>
           </button>
-          {CHIPS.map((chip) => (
-            <button key={chip} type="button" className="m-chip">
-              <span>{chip}</span>
-              {chip === 'Flashbacks' && <span className="m-chip__count">{FLASHBACKS}</span>}
-            </button>
-          ))}
+          <button type="button" className="m-chip" aria-pressed={groupsOnly} onClick={() => setGroupsOnly((on) => !on)}>
+            <span>Groups</span>
+          </button>
         </div>
 
+        {groupsOnly && !chats.some((c) => c.isGroup) && <p className="m-chats__empty">No group chats yet</p>}
         <ul className="m-chats__list">
-          {chats.map((chat) => (
+          {(groupsOnly ? chats.filter((c) => c.isGroup) : chats).map((chat) => (
             <MobileChatRow key={chat.id} chat={chat} />
           ))}
         </ul>

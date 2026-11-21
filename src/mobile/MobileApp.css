@@ -97,18 +97,84 @@
   outline-offset: -6px;
 }
 
-/* ---------- empty tabs ---------- */
+/* ---------- tabs not built yet (Map / Stories / Spotlight) ---------- */
 
 .m-placeholder {
-  display: grid;
+  display: flex;
   flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: calc(24px + env(safe-area-inset-top)) 32px 32px;
+  text-align: center;
+}
+
+.m-placeholder__art {
+  display: grid;
   place-items: center;
-  padding-top: env(safe-area-inset-top);
+  width: 132px;
+  height: 132px;
+  margin-bottom: 20px;
+  border-radius: 50%;
+  background: var(--btn-neutral);
+}
+
+.m-placeholder__cone {
+  display: block;
+  stroke: var(--text);
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+}
+
+.m-placeholder__cone-body {
+  fill: var(--yellow);
+}
+
+.m-placeholder__cone-stripe {
+  fill: var(--bg);
+  stroke: none;
+}
+
+.m-placeholder__cone-base {
+  fill: var(--yellow);
+}
+
+.m-placeholder__tag {
+  margin: 0 0 6px;
+  color: var(--text-2);
+  font-size: 14px;
+  font-weight: 700;
 }
 
 .m-placeholder__title {
   margin: 0;
-  color: var(--text-2);
-  font-size: 20px;
+  color: var(--text);
+  font-size: 26px;
   font-weight: 700;
+  line-height: 1.15;
+}
+
+.m-placeholder__text {
+  max-width: 300px;
+  margin: 10px 0 24px;
+  color: var(--text-2);
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+.m-placeholder__go {
+  height: 44px;
+  padding: 0 24px;
+  border: 0;
+  border-radius: 22px;
+  background: var(--blue);
+  /* White label on the brand blue in both themes. */
+  color: #fff;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.m-placeholder__go:active {
+  background: color-mix(in srgb, var(--blue) 88%, #000);
 }
