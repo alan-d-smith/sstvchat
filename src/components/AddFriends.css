@@ -294,3 +294,12 @@
   outline: 2px solid var(--blue);
   outline-offset: 2px;
 }
+
+.add-friends__btn--remove {
+  background: var(--red);
+  color: #fff;
+}
+
+button.add-friends__btn--done:hover {
+  color: var(--red);
+}

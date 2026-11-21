@@ -62,6 +62,8 @@ export function AddFriends({ variant, onClose, onChat }: {
   const [query, setQuery] = useState('');
   const [directory, setDirectory] = useState<DirectoryUser[] | null>(null);
   const [busy, setBusy] = useState<Record<string, boolean>>({});
+  /** Friend whose Remove button was pressed once and now asks to confirm. */
+  const [confirming, setConfirming] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const titleId = useId();
   const root = useRef<HTMLDivElement>(null);
@@ -214,15 +216,43 @@ export function AddFriends({ variant, onClose, onChat }: {
           <Section title="My friends" count={friends.friends.length}>
             {mine.map((e) => (
               <Row key={e.name} entry={e}>
-                <span className="add-friends__btn add-friends__btn--done">Friends</span>
-                <button
-                  type="button"
-                  className="add-friends__btn add-friends__btn--chat"
-                  aria-label={`Chat with ${e.name}`}
-                  onClick={() => chat(e.name)}
-                >
-                  <Icon name="chat" size={14} />
-                </button>
+                {confirming === e.name ? (
+                  <>
+                    <button
+                      type="button"
+                      className="add-friends__btn add-friends__btn--remove"
+                      disabled={busy[e.name]}
+                      onClick={async () => {
+                        await run(e.name, friends.remove);
+                        setConfirming(null);
+                      }}
+                    >
+                      Remove?
+                    </button>
+                    <button type="button" className="add-friends__btn add-friends__btn--done" onClick={() => setConfirming(null)}>
+                      Cancel
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      className="add-friends__btn add-friends__btn--done"
+                      aria-label={`Remove ${e.name} from friends`}
+                      onClick={() => setConfirming(e.name)}
+                    >
+                      Remove
+                    </button>
+                    <button
+                      type="button"
+                      className="add-friends__btn add-friends__btn--chat"
+                      aria-label={`Chat with ${e.name}`}
+                      onClick={() => chat(e.name)}
+                    >
+                      <Icon name="chat" size={14} />
+                    </button>
+                  </>
+                )}
               </Row>
             ))}
           </Section>
