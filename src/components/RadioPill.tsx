@@ -16,8 +16,21 @@ const INFO: Record<RadioState, { tone: Tone; label: string; short: string; tap?:
 /**
  * Radio status: green "Listening", red "Sending", grey when the mic is off (tap to turn it on).
  * `compact` drops the "tap to …" hint from the visible text (it stays in the accessible name).
+ * A small "Radio details" link next to it opens the diagnostics panel.
  */
 export function RadioPill({ compact = false }: { compact?: boolean }) {
+  const { toggleRadioDetails } = useApp();
+  return (
+    <span className="radio-pill-wrap">
+      <Pill compact={compact} />
+      <button type="button" className="radio-pill__details" onClick={() => toggleRadioDetails()}>
+        {compact ? 'Details' : 'Radio details'}
+      </button>
+    </span>
+  );
+}
+
+function Pill({ compact }: { compact: boolean }) {
   const { radio, enableRadio } = useApp();
   const info = INFO[radio];
   const body = (

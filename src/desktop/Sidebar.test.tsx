@@ -47,6 +47,9 @@ function fakeApi(over: Partial<AppApi> = {}): AppApi {
     startChat: vi.fn((name: string) => name),
     refreshPeople: vi.fn(),
     snapBuffer: vi.fn(),
+    radioDiag: null,
+    radioDetailsOpen: false,
+    toggleRadioDetails: vi.fn(),
     ...over,
   };
 }

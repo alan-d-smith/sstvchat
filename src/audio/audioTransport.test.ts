@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createAudioTransport } from './audioTransport';
-import type { HeardIds } from './audioTransport';
+import type { AudioTransport, HeardIds } from './audioTransport';
 import type { AudioEngine } from './engine';
 import { encodePacket } from './packet';
 import type { Packet } from './packet';
@@ -321,6 +321,25 @@ describe('audio transport: receive', () => {
     const second = radio('bob', 'Bob', store); // page reloaded
     second.hear(msg);
     expect(second.log).toEqual([]);
+  });
+
+  it('logs every packet with its decision and counts headers and CRCs (diagnostics)', () => {
+    const bob = radio('bob', 'Bob');
+    bob.hear(frame({ ...textFrame(['carol'], 'x'), id: 'a1' }));
+    bob.hear(frame({ ...textFrame(['bob'], 'x'), from: 'bob', id: 'a2' }));
+    bob.hear(frame({ ...textFrame(['bob'], 'hi'), id: 'a3' }));
+    bob.hear(frame({ ...textFrame(['bob'], 'hi'), id: 'a3' }));
+    fake.state.crcOk = false;
+    bob.hear(frame({ ...textFrame(['bob'], 'bad'), id: 'a4' }));
+    const diag = (bob.t as AudioTransport).diag;
+    expect(diag.log().map((e) => [e.from, e.to.join(','), e.id, e.decision])).toEqual([
+      ['alice', 'carol', 'a1', 'ignored: not addressed to bob'],
+      ['bob', 'bob', 'a2', 'ignored: own packet'],
+      ['alice', 'bob', 'a3', 'accepted'],
+      ['alice', 'bob', 'a3', 'ignored: repeat'],
+      ['alice', 'bob', 'a4', 'CRC fail'],
+    ]);
+    expect(diag.stats()).toMatchObject({ headers: 5, crcOk: 4, crcFail: 1 });
   });
 
   it('a snap whose VIS never came can be received from a repeat', () => {

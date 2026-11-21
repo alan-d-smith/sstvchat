@@ -11,6 +11,19 @@ export interface AudioEngine {
   onState(fn: (s: RadioState) => void): () => void;
   onSamples(fn: (chunk: Float32Array) => void): () => void; // mic; nothing while transmitting
   play(samples: Float32Array, onProgress?: (p: number) => void): { done: Promise<void>; stop(): void };
+  /** What the browser actually gave us (for the diagnostics panel); null before the mic runs. */
+  details?(): EngineDetails | null;
+}
+
+export interface EngineDetails {
+  /** Mic track label and the settings actually applied (EC/NS/AGC, sample rate, device). */
+  label: string;
+  settings: MediaTrackSettings;
+  trackState: MediaStreamTrackState | 'none';
+  muted: boolean;
+  contextRate: number;
+  contextState: AudioContextState;
+  capture: 'AudioWorklet' | 'ScriptProcessor' | 'none';
 }
 
 const CHUNK = 2048;
@@ -64,6 +77,8 @@ export function createAudioEngine(): AudioEngine {
   let mutedUntil = 0;
   // Capture nodes and the stream are held here so they are not garbage collected.
   let graph: { stop(): void } | null = null;
+  let track: MediaStreamTrack | null = null;
+  let captureKind: EngineDetails['capture'] = 'none';
 
   const stateFns = new Set<(s: RadioState) => void>();
   const sampleFns = new Set<(c: Float32Array) => void>();
@@ -127,6 +142,7 @@ export function createAudioEngine(): AudioEngine {
         node.port.onmessage = (e: MessageEvent<Float32Array>) => deliver(e.data);
         source.connect(node);
         node.connect(sink);
+        captureKind = 'AudioWorklet';
         graph = {
           stop() {
             node.port.onmessage = null;
@@ -145,6 +161,7 @@ export function createAudioEngine(): AudioEngine {
     proc.onaudioprocess = (e) => deliver(new Float32Array(e.inputBuffer.getChannelData(0)));
     source.connect(proc);
     proc.connect(sink);
+    captureKind = 'ScriptProcessor';
     graph = {
       stop() {
         proc.onaudioprocess = null;
@@ -180,6 +197,7 @@ export function createAudioEngine(): AudioEngine {
         });
       }
       graph?.stop();
+      track = stream.getAudioTracks()[0] ?? null;
       await capture(c, stream);
       mic = 'listening';
     } catch (e) {
@@ -193,6 +211,18 @@ export function createAudioEngine(): AudioEngine {
       return ensureCtx().sampleRate;
     },
     state: current,
+    details() {
+      if (!ctx) return null;
+      return {
+        label: track?.label ?? '',
+        settings: track?.getSettings?.() ?? {},
+        trackState: track?.readyState ?? 'none',
+        muted: track?.muted ?? false,
+        contextRate: ctx.sampleRate,
+        contextState: ctx.state,
+        capture: captureKind,
+      };
+    },
     start() {
       if (mic === 'listening') {
         if (ctx) resume(ctx);

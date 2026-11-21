@@ -10,6 +10,7 @@ import { makePlaceholderSnap } from '../media/placeholder';
 import { createAudioEngine, hasWebAudio } from '../audio/engine';
 import type { AudioEngine, RadioState } from '../audio/engine';
 import { createAudioTransport } from '../audio/audioTransport';
+import type { RadioDiag } from '../audio/diagnostics';
 import { NAME_RE, claimName, fetchUsers, normalizeName, saveAccount, savedAccount, seedFor } from './account';
 import type { Account, ClaimResult, DirectoryUser } from './account';
 import { loadChats, loadHeard, loadPeople, saveChats, saveHeard, savePeople } from './persist';
@@ -47,6 +48,11 @@ export interface AppApi {
   refreshPeople(): void;
   /** Portrait 240×320 image for a receive handle (rows so far) or a saved snap. */
   snapBuffer(h: Handle): ImageData | undefined;
+  /** What the radio diagnostics panel inspects; null with the mock transport (tests, no Web Audio). */
+  radioDiag: { engine: AudioEngine; diag: RadioDiag } | null;
+  radioDetailsOpen: boolean;
+  /** Shows/hides the radio diagnostics panel (toggles without an argument). */
+  toggleRadioDetails(open?: boolean): void;
 }
 
 type RxPhase = 'queued' | 'running' | 'done' | 'cancelled';
@@ -167,6 +173,7 @@ export function AppProvider({ children, transport: given }: { children: ReactNod
   const [accountOpen, setAccountOpen] = useState(false);
   const [radio, setRadio] = useState<RadioState>('off');
   const [directory, setDirectory] = useState<DirectoryUser[]>([]);
+  const [radioDetailsOpen, setRadioDetailsOpen] = useState(false);
 
   const stateRef = useRef(state);
   stateRef.current = state;
@@ -174,9 +181,9 @@ export function AppProvider({ children, transport: given }: { children: ReactNod
   selfRef.current = self;
 
   // Browser: real audio, with the mock behind simulateIncoming. Tests / no Web Audio: mock only.
-  const { transport, engine } = useMemo((): { transport: Transport; engine: AudioEngine | null } => {
-    if (given) return { transport: given, engine: null };
-    if (!hasWebAudio()) return { transport: createMockTransport(), engine: null };
+  const { transport, engine, diag } = useMemo((): { transport: Transport; engine: AudioEngine | null; diag: RadioDiag | null } => {
+    if (given) return { transport: given, engine: null, diag: null };
+    if (!hasWebAudio()) return { transport: createMockTransport(), engine: null, diag: null };
     const engine = createAudioEngine();
     const transport = createAudioTransport({
       engine,
@@ -185,7 +192,7 @@ export function AppProvider({ children, transport: given }: { children: ReactNod
       fallback: createMockTransport(),
       heard: { load: loadHeard, save: saveHeard },
     });
-    return { transport, engine };
+    return { transport, engine, diag: transport.diag };
   }, [given]);
 
   const txMeta = useRef(new Map<Handle, TxMeta>());
@@ -633,9 +640,12 @@ export function AppProvider({ children, transport: given }: { children: ReactNod
         return (existing ?? addDirectChat(id, id)).id;
       },
       snapBuffer,
+      radioDiag: engine && diag ? { engine, diag } : null,
+      radioDetailsOpen,
+      toggleRadioDetails: (open) => setRadioDetailsOpen((o) => open ?? !o),
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state, transport, startRx, startTx, closeViewer, patchChat, self, accountOpen, radio, enableRadio, claim, setAvatar, snapBuffer, addDirectChat, people, refreshDirectory]);
+  }, [state, transport, startRx, startTx, closeViewer, patchChat, self, accountOpen, radio, enableRadio, claim, setAvatar, snapBuffer, addDirectChat, people, refreshDirectory, engine, diag, radioDetailsOpen]);
 
   return <Ctx.Provider value={api}>{children}</Ctx.Provider>;
 }

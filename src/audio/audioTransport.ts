@@ -12,6 +12,8 @@ import type { Packet, PacketHeader } from './packet';
 import { FskReceiver, fskDurationMs, fskModulate } from './fsk';
 import { Robot36Receiver, robot36Modulate } from './robot36';
 import type { AudioEngine } from './engine';
+import { createRadioDiag } from './diagnostics';
+import type { RadioDiag } from './diagnostics';
 
 export interface Identity { id: string; name: string }
 
@@ -58,8 +60,8 @@ interface TxJob {
 
 type RxState =
   | { mode: 'idle' }
-  | { mode: 'ignore' } // an FSK frame addressed to someone else
-  | { mode: 'text'; handle: Handle }
+  | { mode: 'ignore'; reason: string; header?: PacketHeader } // e.g. a frame addressed to someone else
+  | { mode: 'text'; handle: Handle; header: PacketHeader }
   | { mode: 'snap-header'; header: PacketHeader } // waiting for the header packet's CRC
   | { mode: 'sstv'; handle: Handle; rx: Robot36Receiver };
 
@@ -77,14 +79,20 @@ function concat(parts: Float32Array[]): Float32Array {
 
 const metaOf = (h: PacketHeader) => ({ fromName: h.fromName || undefined, chatId: h.chatId || undefined });
 
+/** The audio transport, plus read-only diagnostics (counters and the last decisions). */
+export type AudioTransport = Transport & { diag: RadioDiag };
+
 export function createAudioTransport(opts: {
   engine: AudioEngine;
   self: () => Identity;
   recipients: (chatIds: string[]) => string[]; // person ids for those chats, excluding self
   fallback: Transport; // mock transport, used by simulateIncoming
   heard?: HeardIds;
-}): Transport {
+}): AudioTransport {
   const { engine, fallback } = opts;
+  const diag = createRadioDiag();
+  const note = (h: PacketHeader | undefined, decision: string) =>
+    diag.add({ kind: h?.kind ?? '?', from: h?.from ?? '', to: h?.to ?? [], id: h?.id ?? '', decision });
 
   type AnyFn = (...a: unknown[]) => void;
   const listeners = new Map<keyof TransportEvents, Set<AnyFn>>();
@@ -132,14 +140,25 @@ export function createAudioTransport(opts: {
     if (k !== null && seen.delete(k)) saveSeen();
   };
 
+  /** Why this device ignores a header, or null when it accepts it. */
+  const ignoreReason = (h: PacketHeader): string | null => {
+    const me = opts.self().id;
+    if (h.from === me) return 'own packet';
+    if (!h.to.includes(me)) return `not addressed to ${me}`;
+    if (isRepeat(h)) return 'repeat';
+    return null;
+  };
+
   function onHeader(h: PacketHeader) {
-    if (!addressed(h) || isRepeat(h)) {
-      rx = { mode: 'ignore' };
+    diag.count('headers');
+    const reason = ignoreReason(h);
+    if (reason !== null) {
+      rx = { mode: 'ignore', reason, header: h };
       return;
     }
     if (h.kind === 'text') {
       const handle = `arx-${++counter}`;
-      rx = { mode: 'text', handle };
+      rx = { mode: 'text', handle, header: h };
       emit('rx:start', handle, h.from, 'text', TEXT_MODE, metaOf(h));
     } else {
       rx = { mode: 'snap-header', header: h };
@@ -147,27 +166,39 @@ export function createAudioTransport(opts: {
   }
 
   function onPacket(p: Packet, crcOk: boolean) {
+    diag.count(crcOk ? 'crcOk' : 'crcFail');
     if (rx.mode === 'idle') onHeader(p); // the parser never reported the header on its own
     const cur = rx;
     rx = IDLE;
     if (cur.mode === 'text') {
       if (crcOk) {
         remember(p);
+        note(p, 'accepted');
         emit('rx:text-chunk', cur.handle, p.text);
         emit('rx:done', cur.handle);
       } else {
+        note(p, 'CRC fail');
         emit('rx:cancelled', cur.handle);
       }
     } else if (cur.mode === 'snap-header' && crcOk && p.kind === 'snap' && addressed(p) && !isRepeat(p)) {
       remember(p);
+      note(p, 'accepted → SSTV');
       startSstv(p);
+    } else if (cur.mode === 'ignore') {
+      note(p, `ignored: ${cur.reason}${crcOk ? '' : ' (CRC fail)'}`);
+    } else {
+      note(p, crcOk ? `ignored: ${ignoreReason(p) ?? 'unexpected'}` : 'CRC fail');
     }
     pump();
   }
 
   function onAbort() {
+    diag.count('aborts');
     const cur = rx;
     rx = IDLE;
+    if (cur.mode === 'text' || cur.mode === 'snap-header' || cur.mode === 'ignore') {
+      note(cur.header, cur.mode === 'ignore' ? `aborted (was ignored: ${cur.reason})` : 'aborted: frame lost before CRC');
+    }
     if (cur.mode === 'text') emit('rx:cancelled', cur.handle);
     pump();
   }
@@ -182,8 +213,18 @@ export function createAudioTransport(opts: {
       onProgress: (q) => {
         if (mine()) emit('rx:progress', handle, q);
       },
-      onDone: () => endSstv(handle, 'rx:done'),
+      onStart: () => {
+        diag.count('sstvStarted');
+        note(p, 'SSTV: VIS found, receiving');
+      },
+      onDone: () => {
+        diag.count('sstvDone');
+        note(p, 'SSTV: done (240 lines)');
+        endSstv(handle, 'rx:done');
+      },
       onTimeout: () => {
+        diag.count('visTimeouts');
+        note(p, `SSTV: no VIS within ${VIS_TIMEOUT_MS / 1000} s`);
         forget(p); // nothing arrived: a repeat of this snap may still be received
         endSstv(handle, 'rx:cancelled');
       },
@@ -209,6 +250,7 @@ export function createAudioTransport(opts: {
       const rate = engine.sampleRate;
       if (!fsk || fskRate !== rate) {
         fsk = new FskReceiver(rate, {
+          onFrameStart: () => diag.count('frames'),
           onHeader,
           onTextChunk: (t) => {
             if (rx.mode === 'text') emit('rx:text-chunk', rx.handle, t);
@@ -218,7 +260,9 @@ export function createAudioTransport(opts: {
         });
         fskRate = rate;
       }
+      const before = fsk.bytesDecoded;
       fsk.push(chunk);
+      diag.count('bytes', Math.max(0, fsk.bytesDecoded - before));
     } catch (e) {
       if (!warned) console.error('[radio] receiver failed', e);
       warned = true;
@@ -303,6 +347,7 @@ export function createAudioTransport(opts: {
   }
 
   return {
+    diag,
     sendText(chatId, text) {
       const handle = `atx-${++counter}`;
       enqueue({
@@ -356,7 +401,7 @@ export function createAudioTransport(opts: {
         emit('rx:cancelled', h);
         pump();
       } else if (rx.mode === 'text' && rx.handle === h) {
-        rx = { mode: 'ignore' }; // drop the rest of this frame
+        rx = { mode: 'ignore', reason: 'stopped', header: rx.header }; // drop the rest of this frame
         emit('rx:cancelled', h);
         pump();
       }

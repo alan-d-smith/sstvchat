@@ -6,6 +6,7 @@ import { MobileApp } from './mobile/MobileApp';
 import { DemoPanel } from './demo/DemoPanel';
 import { AccountScreen } from './components/AccountScreen';
 import { FriendsLayer } from './components/FriendsLayer';
+import { RadioDetails } from './components/RadioDetails';
 
 export function App() {
   const isMobile = useIsMobile();
@@ -15,6 +16,7 @@ export function App() {
         {isMobile ? <MobileApp /> : <DesktopApp />}
         <FriendsLayer mobile={isMobile} />
         <DemoPanel />
+        <RadioDetails />
         <AccountScreen />
       </FriendsProvider>
     </AppProvider>
