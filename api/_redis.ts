@@ -17,11 +17,13 @@ function connectRedis(): Redis {
   if ((env.UPSTASH_REDIS_REST_URL && env.UPSTASH_REDIS_REST_TOKEN) || (env.KV_REST_API_URL && env.KV_REST_API_TOKEN)) {
     return Redis.fromEnv();
   }
-  const find = (suffix: string) => Object.keys(env).find((k) => k.endsWith(suffix) && env[k]);
-  for (const [u, t] of [['UPSTASH_REDIS_REST_URL', 'UPSTASH_REDIS_REST_TOKEN'], ['KV_REST_API_URL', 'KV_REST_API_TOKEN']]) {
-    const urlKey = find(u);
-    const tokenKey = urlKey ? Object.keys(env).find((k) => k === urlKey.slice(0, -u.length) + t && env[k]) : undefined;
-    if (urlKey && tokenKey) return new Redis({ url: env[urlKey]!, token: env[tokenKey]! });
+  // Any <PREFIX>_REST_API_URL + <PREFIX>_REST_API_TOKEN pair (e.g. STORAGE_REST_API_URL),
+  // or a prefixed UPSTASH_REDIS_REST_URL/TOKEN pair.
+  for (const [u, t] of [['UPSTASH_REDIS_REST_URL', 'UPSTASH_REDIS_REST_TOKEN'], ['_REST_API_URL', '_REST_API_TOKEN']]) {
+    for (const urlKey of Object.keys(env).filter((k) => k.endsWith(u) && env[k])) {
+      const token = env[urlKey.slice(0, -u.length) + t];
+      if (token) return new Redis({ url: env[urlKey]!, token });
+    }
   }
   throw new RedisNotConfigured();
 }
