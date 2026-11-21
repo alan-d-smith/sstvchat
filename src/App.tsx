@@ -3,6 +3,7 @@ import { AppProvider } from './state/store';
 import { DesktopApp } from './desktop/DesktopApp';
 import { MobileApp } from './mobile/MobileApp';
 import { DemoPanel } from './demo/DemoPanel';
+import { AccountScreen } from './components/AccountScreen';
 
 export function App() {
   const isMobile = useIsMobile();
@@ -10,6 +11,7 @@ export function App() {
     <AppProvider>
       {isMobile ? <MobileApp /> : <DesktopApp />}
       <DemoPanel />
+      <AccountScreen />
     </AppProvider>
   );
 }

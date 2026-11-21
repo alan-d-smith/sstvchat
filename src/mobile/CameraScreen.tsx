@@ -130,7 +130,7 @@ function centreInScroller(scroller: HTMLElement, el: HTMLElement, smooth: boolea
  * container; the shared bottom nav sits below it. The shutter captures a placeholder snap.
  */
 export function CameraScreen() {
-  const { people, takeSnap } = useApp();
+  const { people, takeSnap, openAccount } = useApp();
   const me = people[ME] ?? SELF;
   const [zoom, setZoom] = useState<(typeof ZOOMS)[number]>('1x');
   const [tab, setTab] = useState('Create with AI');
@@ -148,7 +148,7 @@ export function CameraScreen() {
     <div className="cam" data-testid="camera">
       <div className="cam__top">
         <div className="cam__group">
-          <button type="button" className="cam__avatar" aria-label="My profile">
+          <button type="button" className="cam__avatar" aria-label="My profile" onClick={openAccount}>
             <Avatar people={[me]} size={40} />
           </button>
           <ToolButton icon="search" label="Search" className="cam__btn--search" />
