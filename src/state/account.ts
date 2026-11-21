@@ -1,6 +1,7 @@
-// Unique usernames: every name choice goes through POST /api/claim with this browser's token.
+// Unique usernames: every name choice goes through POST /api/claim with this browser's token
+// (mode 'signup' for a new name, 'login' to move a name with a password onto this device).
 // The claimed name is the address used in packet `to`/`from`; it is kept in the `sstv_user`
-// cookie, the token and avatar seed in localStorage.
+// cookie, the token and avatar seed in localStorage. Logging out forgets both and rotates the token.
 
 import { NAME_RE } from '../../api/_accounts';
 
@@ -8,7 +9,9 @@ export { NAME_RE };
 
 export interface Account { id: string; name: string; avatar: number }
 export interface DirectoryUser { name: string; avatar: number | null }
-export type ClaimResult = 'ok' | 'invalid' | 'taken' | 'wrong-password' | 'too-many' | 'not-configured' | 'server' | 'error';
+export type ClaimResult =
+  | 'ok' | 'invalid' | 'taken' | 'wrong-password' | 'too-many' | 'no-such-user' | 'no-password'
+  | 'not-configured' | 'server' | 'error';
 
 export const USER_COOKIE = 'sstv_user';
 const TOKEN_KEY = 'sstv.token';
@@ -87,24 +90,57 @@ export function saveAccount(a: Account): void {
   writeAvatar(a.avatar);
 }
 
+/** Forgets the session on this device: the name cookie, the avatar, and the token (a fresh one, so
+ * the name needs its password to come back here). Chats stay: they belong to the device. */
+export function forgetAccount(): void {
+  document.cookie = `${USER_COOKIE}=; path=/; max-age=0; SameSite=Lax`;
+  memoryToken = crypto.randomUUID();
+  try {
+    localStorage.removeItem(AVATAR_KEY);
+    localStorage.setItem(TOKEN_KEY, memoryToken);
+  } catch {
+    /* storage blocked: the memory token is used for this page load */
+  }
+}
+
 const RESULTS: Record<number, ClaimResult> = {
-  200: 'ok', 400: 'invalid', 401: 'wrong-password', 409: 'taken', 429: 'too-many',
+  200: 'ok', 400: 'invalid', 401: 'wrong-password', 404: 'no-such-user', 409: 'taken', 429: 'too-many',
   500: 'server', 503: 'not-configured',
 };
 
-export async function claimName(name: string, opts: { avatar: number; password?: string }): Promise<ClaimResult> {
-  const n = normalizeName(name);
-  if (!NAME_RE.test(n)) return 'invalid';
+async function postClaim(body: Record<string, unknown>): Promise<{ result: ClaimResult; body: unknown }> {
   try {
     const res = await fetch('/api/claim', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ name: n, token: deviceToken(), avatar: opts.avatar, ...(opts.password ? { password: opts.password } : {}) }),
+      body: JSON.stringify({ ...body, token: deviceToken() }),
     });
-    return RESULTS[res.status] ?? 'error';
+    const json: unknown = await res.json().catch(() => null);
+    const error = json && typeof json === 'object' ? (json as { error?: unknown }).error : undefined;
+    const result = res.status === 409 && error === 'no-password' ? 'no-password' : RESULTS[res.status] ?? 'error';
+    return { result, body: json };
   } catch {
-    return 'error';
+    return { result: 'error', body: null };
   }
+}
+
+/** Signs up a free name (or re-saves one this device holds, e.g. a new avatar). */
+export async function claimName(name: string, opts: { avatar: number; password?: string }): Promise<ClaimResult> {
+  const n = normalizeName(name);
+  if (!NAME_RE.test(n)) return 'invalid';
+  const { result } = await postClaim({
+    mode: 'signup', name: n, avatar: opts.avatar, ...(opts.password ? { password: opts.password } : {}),
+  });
+  return result;
+}
+
+/** Logs this device into an existing name with its password; on 'ok', `avatar` is the stored one. */
+export async function loginName(name: string, password: string): Promise<{ result: ClaimResult; avatar: number | null }> {
+  const n = normalizeName(name);
+  if (!NAME_RE.test(n)) return { result: 'invalid', avatar: null };
+  const { result, body } = await postClaim({ mode: 'login', name: n, password });
+  const avatar = body && typeof body === 'object' ? (body as { avatar?: unknown }).avatar : null;
+  return { result, avatar: result === 'ok' && Number.isInteger(avatar) ? avatar as number : null };
 }
 
 /** Everyone who has claimed a name; empty when the server cannot be reached. */

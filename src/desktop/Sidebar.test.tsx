@@ -49,6 +49,8 @@ function fakeApi(over: Partial<AppApi> = {}): AppApi {
     resetDemo: vi.fn(),
     self: null,
     claim: vi.fn(),
+    login: vi.fn(),
+    logout: vi.fn(),
     setAvatar: vi.fn(),
     accountOpen: false,
     openAccount: vi.fn(),

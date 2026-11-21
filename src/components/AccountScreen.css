@@ -246,3 +246,129 @@
   color: var(--text-2);
   font-size: 12.5px;
 }
+
+/* ---------- Sign up | Log in ---------- */
+
+.account__tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 999px;
+  background: var(--btn-neutral);
+}
+
+.account__tab {
+  height: 34px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: var(--text-2);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.account__tab[aria-selected='true'] {
+  background: var(--bg-elev);
+  color: var(--text);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.18);
+}
+
+.account__panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* "Log in instead" inside the error line. */
+.account__inline {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--blue);
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+/* ---------- links + log out ---------- */
+
+.account__link {
+  align-self: center;
+  padding: 4px 8px;
+  border: 0;
+  background: none;
+  color: var(--text-2);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.account__link:hover {
+  color: var(--text);
+}
+
+.account__link--danger,
+.account__link--danger:hover {
+  color: var(--red);
+}
+
+.account__logout {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: -6px;
+}
+
+.account__logout-note {
+  margin: 0;
+  color: var(--text-2);
+  font-size: 13.5px;
+  line-height: 1.4;
+}
+
+.account__logout-note b {
+  color: var(--text);
+}
+
+.account__logout-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.account__ghost,
+.account__danger {
+  height: 40px;
+  border: 0;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.account__ghost {
+  background: var(--btn-neutral);
+  color: var(--text);
+}
+
+.account__danger {
+  background: var(--red);
+  /* White label on the brand red in both themes. */
+  color: #fff;
+}
+
+.account__tab:focus-visible,
+.account__inline:focus-visible,
+.account__link:focus-visible,
+.account__ghost:focus-visible,
+.account__danger:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}

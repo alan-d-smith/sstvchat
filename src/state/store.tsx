@@ -12,7 +12,7 @@ import type { AudioEngine, RadioState } from '../audio/engine';
 import { createAudioTransport } from '../audio/audioTransport';
 import { createToneWatch } from '../audio/diagnostics';
 import type { RadioDiag } from '../audio/diagnostics';
-import { NAME_RE, claimName, fetchUsers, normalizeName, saveAccount, savedAccount, seedFor } from './account';
+import { NAME_RE, claimName, fetchUsers, forgetAccount, loginName, normalizeName, saveAccount, savedAccount, seedFor } from './account';
 import type { Account, ClaimResult, DirectoryUser } from './account';
 import { decodeHintDismissedRecently, loadChats, loadHeard, loadPeople, saveChats, saveDecodeHintDismissed, saveHeard, savePeople } from './persist';
 import { groupTitle, isGroupId } from './groups';
@@ -42,6 +42,10 @@ export interface AppApi {
   self: Account | null;
   /** Claims `name` through /api/claim; on 'ok' it becomes `self`. */
   claim(name: string, opts: { avatar: number; password?: string }): Promise<ClaimResult>;
+  /** Logs into an existing name with its password; on 'ok' it becomes `self` with its saved avatar. */
+  login(name: string, password: string): Promise<ClaimResult>;
+  /** Forgets the name on this device (cookie, avatar, token) and shows the name screen; chats stay. */
+  logout(): void;
   /** Changes this device's avatar at once (everywhere) and saves it with /api/claim; reverted if that fails. */
   setAvatar(seed: number): Promise<ClaimResult>;
   /** The name/avatar screen is showing (always while `self` is null). */
@@ -693,18 +697,34 @@ export function AppProvider({ children, transport: given }: { children: ReactNod
   const snapBuffer = useCallback((h: Handle) =>
     (h.startsWith(SAVED) ? images.current.get(h.slice(SAVED.length)) : snapBufs.current.get(h)), []);
 
-  const claim = useCallback(async (name: string, opts: { avatar: number; password?: string }) => {
-    const result = await claimName(name, opts);
-    if (result !== 'ok') return result;
-    const me: Account = { id: normalizeName(name), name: normalizeName(name), avatar: opts.avatar };
+  const adopt = useCallback((name: string, avatar: number) => {
+    const me: Account = { id: normalizeName(name), name: normalizeName(name), avatar };
     saveAccount(me);
     selfRef.current = me;
     setSelfState(me);
     setAccountOpen(false);
     enableRadio(); // right after the tap that submitted the name: still a user gesture for the mic
     refreshDirectory();
-    return result;
   }, [enableRadio, refreshDirectory]);
+
+  const claim = useCallback(async (name: string, opts: { avatar: number; password?: string }) => {
+    const result = await claimName(name, opts);
+    if (result === 'ok') adopt(name, opts.avatar);
+    return result;
+  }, [adopt]);
+
+  const login = useCallback(async (name: string, password: string) => {
+    const { result, avatar } = await loginName(name, password);
+    if (result === 'ok') adopt(name, avatar ?? seedFor(normalizeName(name)));
+    return result;
+  }, [adopt]);
+
+  const logout = useCallback(() => {
+    forgetAccount();
+    selfRef.current = null;
+    setSelfState(null);
+    setAccountOpen(false);
+  }, []);
 
   const setAvatar = useCallback(async (seed: number): Promise<ClaimResult> => {
     const before = selfRef.current;
@@ -847,6 +867,8 @@ export function AppProvider({ children, transport: given }: { children: ReactNod
       },
       self,
       claim,
+      login,
+      logout,
       setAvatar,
       accountOpen: accountOpen || self === null,
       openAccount: () => setAccountOpen(true),
@@ -871,7 +893,7 @@ export function AppProvider({ children, transport: given }: { children: ReactNod
       onGroupMiss,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state, transport, startRx, startTx, closeViewer, patchChat, self, accountOpen, radio, enableRadio, claim, setAvatar, snapBuffer, addDirectChat, people, refreshDirectory, engine, diag, radioDetailsOpen, decodeHint, dismissDecodeHint, syncGroups, dropGroup, onGroupMiss]);
+  }, [state, transport, startRx, startTx, closeViewer, patchChat, self, accountOpen, radio, enableRadio, claim, login, logout, setAvatar, snapBuffer, addDirectChat, people, refreshDirectory, engine, diag, radioDetailsOpen, decodeHint, dismissDecodeHint, syncGroups, dropGroup, onGroupMiss]);
 
   return <Ctx.Provider value={api}>{children}</Ctx.Provider>;
 }
