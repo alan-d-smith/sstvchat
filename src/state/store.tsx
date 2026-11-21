@@ -130,7 +130,7 @@ const clock = (ms: number) => `${Math.floor(ms / 60000)}:${String(Math.floor(ms 
 const CANNED = 'on my way 📻';
 const SAVED = 'img:';
 /** How often other people's names and avatars are re-read. */
-const DIRECTORY_REFRESH_MS = 30_000;
+const DIRECTORY_REFRESH_MS = 10_000;
 /** Stand-in address while no username is claimed; names never contain '~', so nothing matches it. */
 const NOBODY = { id: '~', name: '' };
 const MOCK_PEOPLE: Record<string, Person> = Object.fromEntries(mockPeople.map((p) => [p.id, p]));
@@ -203,10 +203,10 @@ export function AppProvider({ children, transport: given }: { children: ReactNod
   const refreshDirectory = useCallback(() => {
     void fetchUsers().then((list) => { if (list.length) setDirectory(list); });
   }, []);
-  // Other people's avatars change: re-read the directory now, every 30 s, and when the tab comes back.
+  // Other people's avatars change: re-read the directory now, every 10 s while visible, and when the tab comes back.
   useEffect(() => {
     refreshDirectory();
-    const timer = setInterval(refreshDirectory, DIRECTORY_REFRESH_MS);
+    const timer = setInterval(() => { if (document.visibilityState !== 'hidden') refreshDirectory(); }, DIRECTORY_REFRESH_MS);
     const onVisible = () => {
       if (document.visibilityState === 'visible') refreshDirectory();
     };

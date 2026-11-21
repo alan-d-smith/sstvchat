@@ -245,7 +245,7 @@ describe('account', () => {
 });
 
 describe('directory', () => {
-  it('shows claimed users as people with their avatars, and re-reads them every 30 s', async () => {
+  it('shows claimed users as people with their avatars, and re-reads them every 10 s', async () => {
     let list = [{ name: 'zed', avatar: 42 }, { name: 'ben', avatar: 7 }];
     mockApi({ users: () => list });
     const { api } = setup();
@@ -254,7 +254,7 @@ describe('directory', () => {
     // A demo person keeps their name but shows the avatar their claimed name picked.
     expect(api().people.ben).toMatchObject({ name: 'Ben', seed: 7 });
     list = [{ name: 'zed', avatar: 43 }];
-    await act(async () => { vi.advanceTimersByTime(30_000); });
+    await act(async () => { vi.advanceTimersByTime(10_000); });
     await flush();
     expect(api().people.zed.seed).toBe(43);
   });
