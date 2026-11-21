@@ -14,7 +14,7 @@ import { tmpdir } from 'node:os';
 import { runnerImport } from 'vite';
 
 const RATE = 48000;
-const LEVEL = 0.5; // on top of the modulators' 0.8
+const LEVEL = 0.5; // on top of the modulators' own level (FSK 0.95, Robot36 0.8)
 const NOISE = 0.003;
 
 const args = process.argv.slice(2);

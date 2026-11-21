@@ -126,6 +126,7 @@ per-message identifier, so a device that hears the same transmission twice keeps
 | Mark / space | 3000 Hz / 4000 Hz (above the speech band, so room chatter barely reaches them) |
 | Rate | 100 baud, UART 8-N-1, LSB first |
 | Lead-in / tail | 300 ms / 60 ms of mark |
+| Level | 0.95 of full scale (constant envelope), 5 ms fades |
 | Airtime | ≈ 0.36 s + 0.1 s per byte (texts are capped at 140 characters) |
 
 ### SSTV (snaps)

@@ -149,8 +149,8 @@ describe('fskModulate', () => {
     const sig = fskModulate(encodePacket(snap), 48000);
     let peak = 0;
     for (const v of sig) peak = Math.max(peak, Math.abs(v));
-    expect(peak).toBeLessThanOrEqual(0.8 + 1e-6);
-    expect(peak).toBeGreaterThan(0.79);
+    expect(peak).toBeLessThanOrEqual(FSK.amplitude + 1e-6);
+    expect(peak).toBeGreaterThan(FSK.amplitude - 0.01);
     expect(Math.abs(sig[0])).toBeLessThan(1e-6);
     expect(Math.abs(sig[sig.length - 1])).toBeLessThan(0.01);
     const quiet = fskModulate(encodePacket(snap), 48000, 0.25);

@@ -4,8 +4,9 @@
 // See docs/superpowers/specs/2026-11-21-audio-transport-design.md ("Two-tone FSK").
 import { PacketParser, type PacketEvents } from './packet';
 
-/** The FSK tones, rate and framing: the one place they are defined. */
-export const FSK = { mark: 3000, space: 4000, baud: 100, leadInMs: 300, tailMs: 60 } as const;
+/** The FSK tones, rate, framing and level: the one place they are defined. FSK is constant-envelope,
+ * so it can go out near full scale (5 ms fades at either end). */
+export const FSK = { mark: 3000, space: 4000, baud: 100, leadInMs: 300, tailMs: 60, amplitude: 0.95 } as const;
 export interface FskEvents extends PacketEvents {
   onAbort?(): void;
 }
@@ -32,7 +33,7 @@ export function fskDurationMs(byteCount: number): number {
  * Lead-in mark, then each byte as UART (start 0, 8 data bits LSB first, stop 1), then a mark tail.
  * Continuous phase, raised-cosine fade in/out.
  */
-export function fskModulate(bytes: Uint8Array, sampleRate: number, amplitude = 0.8): Float32Array {
+export function fskModulate(bytes: Uint8Array, sampleRate: number, amplitude: number = FSK.amplitude): Float32Array {
   const lead = Math.round((sampleRate * FSK.leadInMs) / 1000);
   const dataLen = Math.round((bytes.length * BITS_PER_BYTE * sampleRate) / FSK.baud);
   const tail = Math.round((sampleRate * FSK.tailMs) / 1000);
