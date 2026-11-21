@@ -165,10 +165,10 @@ describe('mobile chat list ⋯ menu', () => {
     return screen.getByRole('dialog', { name: 'Chat options' });
   };
 
-  it('opens an action sheet with New Chat, New Group Chat, Settings and Done', () => {
+  it('opens an action sheet with New Chat, New Group Chat, Settings, Radio details and Done', () => {
     renderMobile();
     const menu = openMenu();
-    expect(within(menu).getAllByRole('button').map((b) => b.textContent)).toEqual(['New Chat', 'New Group Chat', 'Settings', 'Done']);
+    expect(within(menu).getAllByRole('button').map((b) => b.textContent)).toEqual(['New Chat', 'New Group Chat', 'Settings', 'Radio details', 'Done']);
     expect(screen.getByRole('button', { name: 'More' })).toHaveAttribute('aria-expanded', 'true');
   });
 
