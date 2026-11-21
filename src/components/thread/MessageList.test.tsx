@@ -94,7 +94,9 @@ describe('MessageList', () => {
       <MessageList chat={chatWith([{ id: '1', senderId: 'jen', type: 'text', text: 'on my', state: 'receiving' }])} />,
     );
     expect(screen.getByText('Receiving · two-tone')).toBeInTheDocument();
-    expect(screen.getByText('on my')).toBeInTheDocument();
+    // Typing dots stand in for the text until the whole message has arrived.
+    expect(screen.getByRole('status', { name: 'Receiving a message' })).toBeInTheDocument();
+    expect(screen.queryByText('on my')).not.toBeInTheDocument();
   });
 
   it('shows no transfer label once a text has settled', () => {

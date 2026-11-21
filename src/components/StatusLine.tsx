@@ -32,7 +32,8 @@ function look(s: ChatStatus): Look {
     case 'receiving': {
       // A snap arriving is "live" green; a two-tone text arriving stays chat blue.
       const live = s.medium === 'snap' ? 'var(--green)' : medium;
-      const word = s.progress == null ? 'Receiving…' : 'Receiving';
+      // A text shows "Typing…" from its two-tone header until the whole message has arrived.
+      const word = s.medium === 'chat' ? 'Typing…' : s.progress == null ? 'Receiving…' : 'Receiving';
       return { word, icon: 'wave', filled: false, iconColor: live, wordColor: live, strong: true, anim: 'wave' };
     }
     case 'delivered':

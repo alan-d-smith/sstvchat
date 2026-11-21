@@ -33,10 +33,16 @@ export function Message({ message: m, people, onOpenSnap, snapProgress }: Messag
     case 'text':
       return (
         <div className={`msg msg--text${m.state ? ` is-${m.state}` : ''}`}>
-          <p className="msg__text" aria-hidden={m.state === 'receiving' || undefined}>
-            {m.text}
-            {m.state === 'receiving' && <span className="msg__caret" />}
-          </p>
+          {m.state === 'receiving' ? (
+            // The two-tone header has arrived: show "typing" dots until the whole message is in.
+            <p className="msg__typing" role="status" aria-label="Receiving a message">
+              <i />
+              <i />
+              <i />
+            </p>
+          ) : (
+            <p className="msg__text">{m.text}</p>
+          )}
           {m.state === 'sending' && <p className="msg__meta">Sending…</p>}
           {m.state === 'receiving' && <p className="msg__meta">Receiving · two-tone</p>}
         </div>

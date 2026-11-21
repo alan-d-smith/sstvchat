@@ -43,10 +43,10 @@ describe('StatusLine', () => {
     expect(screen.getByText('Receiving')).toHaveStyle({ color: 'var(--green)' });
   });
 
-  it('shows an incoming text as blue Receiving… without a percentage', () => {
+  it('shows an incoming text as blue Typing… without a percentage', () => {
     const { container } = renderStatus({ kind: 'receiving', medium: 'chat' });
-    expect(container).toHaveTextContent(/^Receiving…$/);
-    expect(screen.getByText('Receiving…')).toHaveStyle({ color: 'var(--blue)' });
+    expect(container).toHaveTextContent(/^Typing…$/);
+    expect(screen.getByText('Typing…')).toHaveStyle({ color: 'var(--blue)' });
   });
 
   it('keeps settled words grey and colours only the icon by medium', () => {
