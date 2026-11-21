@@ -21,8 +21,14 @@ export const TEXT_MODE = 'two-tone';
 export const HEADER_GAP_MS = 300;
 /** How long to wait for the VIS code after a snap header before giving up. */
 export const VIS_TIMEOUT_MS = 4000;
-/** How long a received message id is remembered (seconds of heard audio). */
-export const REPEAT_WINDOW_S = 15 * 60;
+/** How long a received message id is remembered. */
+export const REPEAT_WINDOW_MS = 60 * 60 * 1000;
+
+/** Received message ids (`from:id` → when), kept by the app across reloads. */
+export interface HeardIds {
+  load(): Record<string, number>;
+  save(heard: Record<string, number>): void;
+}
 
 /** Longest chat text (the input's maxLength): two-tone FSK carries about 10 bytes a second. */
 export const MAX_TEXT = 140;
@@ -76,6 +82,7 @@ export function createAudioTransport(opts: {
   self: () => Identity;
   recipients: (chatIds: string[]) => string[]; // person ids for those chats, excluding self
   fallback: Transport; // mock transport, used by simulateIncoming
+  heard?: HeardIds;
 }): Transport {
   const { engine, fallback } = opts;
 
@@ -103,25 +110,26 @@ export function createAudioTransport(opts: {
     return h.from !== me && h.to.includes(me);
   };
 
-  /** Seconds of audio heard so far: the clock for remembering message ids. */
-  let heard = 0;
-  /** `from␟id` → when it was received. */
-  const seen = new Map<string, number>();
-  const seenKey = (h: PacketHeader) => (h.id ? `${h.from}${h.id}` : null);
+  /** Message ids already received: the same sender + id again is a repeat of that message. */
+  const seen = new Map<string, number>(Object.entries(opts.heard?.load() ?? {}));
+  const seenKey = (h: PacketHeader) => (h.id ? `${h.from}:${h.id}` : null);
   const isRepeat = (h: PacketHeader) => {
     const k = seenKey(h);
     const at = k === null ? undefined : seen.get(k);
-    return at !== undefined && heard - at < REPEAT_WINDOW_S;
+    return at !== undefined && Date.now() - at < REPEAT_WINDOW_MS;
   };
+  const saveSeen = () => opts.heard?.save(Object.fromEntries(seen));
   const remember = (h: PacketHeader) => {
     const k = seenKey(h);
     if (k === null) return;
-    for (const [key, at] of seen) if (heard - at >= REPEAT_WINDOW_S) seen.delete(key);
-    seen.set(k, heard);
+    const now = Date.now();
+    for (const [key, at] of seen) if (now - at >= REPEAT_WINDOW_MS) seen.delete(key);
+    seen.set(k, now);
+    saveSeen();
   };
   const forget = (h: PacketHeader) => {
     const k = seenKey(h);
-    if (k !== null) seen.delete(k);
+    if (k !== null && seen.delete(k)) saveSeen();
   };
 
   function onHeader(h: PacketHeader) {
@@ -193,7 +201,6 @@ export function createAudioTransport(opts: {
   }
 
   function feed(chunk: Float32Array) {
-    heard += chunk.length / engine.sampleRate;
     try {
       if (rx.mode === 'sstv') {
         rx.rx.push(chunk);

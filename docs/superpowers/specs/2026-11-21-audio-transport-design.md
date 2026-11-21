@@ -41,7 +41,7 @@ Date: 2026-11-21. Extends `2026-11-21-sstvchat-ui-design.md`.
   `to` ids comma-joined · `chatId` · `mode` (`Robot36` for snaps, empty for text) ·
   `id` (4 random base-36 chars per message) · `text` (last; empty for snaps).
 - Receivers drop packets whose `from` is their own id (own transmission leaking into the mic)
-  and any packet whose `from` + `id` they already received in the last 15 minutes (a looped
+  and any packet whose `from` + `id` they already received in the last hour, remembered across reloads (a looped
   recording or echo of the same transmission); two sends of the same words have different ids.
   Fields never contain 0x1F (stripped on encode).
 - Text is last so the receiver can show it as it arrives.

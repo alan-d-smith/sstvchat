@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createAudioTransport } from './audioTransport';
+import type { HeardIds } from './audioTransport';
 import type { AudioEngine } from './engine';
 import { encodePacket } from './packet';
 import type { Packet } from './packet';
@@ -182,7 +183,7 @@ function fakeEngine() {
   return { engine, plays, hear };
 }
 
-function radio(id: string, name: string) {
+function radio(id: string, name: string, heard?: HeardIds) {
   const { engine, plays, hear } = fakeEngine();
   const fallback = createMockTransport({ snapMs: 100, textMs: 100 });
   const t = createAudioTransport({
@@ -190,6 +191,7 @@ function radio(id: string, name: string) {
     self: () => ({ id, name }),
     recipients: (ids) => ids.flatMap((c) => ROSTER[c] ?? [c]),
     fallback,
+    heard,
   });
   const log: [string, ...unknown[]][] = [];
   for (const ev of EVENTS) t.on(ev, ((...a: unknown[]) => log.push([ev, ...a])) as never);
@@ -306,6 +308,19 @@ describe('audio transport: receive', () => {
     bob.hear(frame({ ...textFrame(['bob'], 'ok'), id: 'b2' }));
     expect(bob.events('rx:done')).toHaveLength(3);
     expect(bob.events('rx:start').map((e) => e[2])).toEqual(['alice', 'dan', 'alice']);
+  });
+
+  it('remembers received ids across a restart through the app store', () => {
+    let saved: Record<string, number> = {};
+    const store: HeardIds = { load: () => saved, save: (v) => { saved = v; } };
+    const msg = frame({ ...textFrame(['bob'], 'hi'), id: 'z9' });
+    const first = radio('bob', 'Bob', store);
+    first.hear(msg);
+    expect(first.events('rx:done')).toHaveLength(1);
+    expect(Object.keys(saved)).toEqual(['alice:z9']);
+    const second = radio('bob', 'Bob', store); // page reloaded
+    second.hear(msg);
+    expect(second.log).toEqual([]);
   });
 
   it('a snap whose VIS never came can be received from a repeat', () => {

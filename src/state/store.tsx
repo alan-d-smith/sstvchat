@@ -12,7 +12,7 @@ import type { AudioEngine, RadioState } from '../audio/engine';
 import { createAudioTransport } from '../audio/audioTransport';
 import { NAME_RE, claimName, fetchUsers, normalizeName, saveAccount, savedAccount, seedFor } from './account';
 import type { Account, ClaimResult, DirectoryUser } from './account';
-import { loadChats, loadPeople, saveChats, savePeople } from './persist';
+import { loadChats, loadHeard, loadPeople, saveChats, saveHeard, savePeople } from './persist';
 import { clearSnapImages, loadSnapImages, newImageId, saveSnapImage } from './snapImages';
 
 export type { Account, ClaimResult } from './account';
@@ -158,6 +158,8 @@ export function recipientsFor(chats: Chat[], chatIds: string[], selfId?: string)
 
 const Ctx = createContext<AppApi | null>(null);
 let seq = 0;
+/** Message ids stay unique across reloads (chats are saved): time + counter. */
+const nextId = (prefix: 'rx' | 'tx') => `${prefix}${Date.now().toString(36)}-${++seq}`;
 
 export function AppProvider({ children, transport: given }: { children: ReactNode; transport?: Transport }) {
   const [state, dispatch] = useReducer(reducer, undefined, initial);
@@ -181,6 +183,7 @@ export function AppProvider({ children, transport: given }: { children: ReactNod
       self: () => selfRef.current ?? NOBODY,
       recipients: (ids) => recipientsFor(stateRef.current.chats, ids, selfRef.current?.id),
       fallback: createMockTransport(),
+      heard: { load: loadHeard, save: saveHeard },
     });
     return { transport, engine };
   }, [given]);
@@ -378,7 +381,7 @@ export function AppProvider({ children, transport: given }: { children: ReactNod
             m.msgId = chat.messages.find((x) => fits(x) && x.senderId === from)?.id;
           }
           m.added = !m.msgId;
-          const msgId = (m.msgId ??= `rx${++seq}`);
+          const msgId = (m.msgId ??= nextId('rx'));
           patchChat(chatId, (c) => ({
             ...c,
             hasIncomingSnap: true,
@@ -386,7 +389,7 @@ export function AppProvider({ children, transport: given }: { children: ReactNod
             messages: m.added ? [...c.messages, { id: msgId, senderId: from, type: 'snap', opened: false }] : c.messages,
           }));
         } else {
-          const msgId = (m.msgId = `rx${++seq}`);
+          const msgId = (m.msgId = nextId('rx'));
           patchChat(chatId, (c) => ({
             ...c,
             status: { kind: 'receiving', medium: 'chat', progress: meta ? undefined : 0 },
@@ -584,7 +587,7 @@ export function AppProvider({ children, transport: given }: { children: ReactNod
         openViewer(chatId, startRx(target, from, 'snap', makePlaceholderSnap(chatId.length * 7 + 3), resume));
       },
       sendText: (chatId, text) => {
-        const msgId = `tx${++seq}`;
+        const msgId = nextId('tx');
         patchChat(chatId, (c) => ({
           ...c, messages: [...c.messages, { id: msgId, senderId: ME, type: 'text', text, state: 'sending' }],
         }));
@@ -593,7 +596,7 @@ export function AppProvider({ children, transport: given }: { children: ReactNod
       sendSnap: (chatIds) => {
         const image = stateRef.current.capture ?? makePlaceholderSnap();
         chatIds.forEach((id) => patchChat(id, (c) => ({
-          ...c, messages: [...c.messages, { id: `tx${++seq}`, senderId: ME, type: 'snap', opened: false }],
+          ...c, messages: [...c.messages, { id: nextId('tx'), senderId: ME, type: 'snap', opened: false }],
         })));
         dispatch({ type: 'patch', patch: { capture: null, pane: null, overlay: null, tab: 'chat', cameraTo: undefined } });
         startTx({ kind: 'snap', chatIds: [...chatIds] }, () => transport.sendSnap(chatIds, image));

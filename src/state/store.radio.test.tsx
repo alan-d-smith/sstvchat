@@ -188,6 +188,43 @@ describe('persistence', () => {
     act(() => second.api().resetDemo());
     expect(second.api().chats.map((c) => c.id)).toEqual(mockChats.map((c) => c.id));
   });
+  it('keeps message ids unique across reloads, so a new message never rewrites a saved one', async () => {
+    const first = setup();
+    first.emit('rx:start', 'arx-1', 'zed', 'text', 'two-tone', { fromName: 'zed' });
+    first.emit('rx:text-chunk', 'arx-1', 'one');
+    first.emit('rx:done', 'arx-1');
+    first.r.unmount();
+
+    // A reload: fresh modules (message counters start again), a later clock, the saved chats.
+    vi.resetModules();
+    vi.advanceTimersByTime(5000);
+    const store = await import('./store');
+    const { transport, emit } = fakeTransport();
+    const wrapper = ({ children }: { children: ReactNode }) => <store.AppProvider transport={transport}>{children}</store.AppProvider>;
+    const r = renderHook(() => store.useApp(), { wrapper });
+    emit('rx:start', 'arx-1', 'zed', 'text', 'two-tone', { fromName: 'zed' });
+    emit('rx:text-chunk', 'arx-1', 'two');
+    emit('rx:done', 'arx-1');
+    const msgs = r.result.current.chats.find((c) => c.id === 'zed')!.messages;
+    expect(msgs.map((m) => 'text' in m && m.text)).toEqual(['one', 'two']);
+    expect(new Set(msgs.map((m) => m.id)).size).toBe(2);
+  });
+
+  it('settles a receive cut off by a reload: no empty snap, no endless Receiving', () => {
+    const first = setup();
+    first.emit('rx:start', 'arx-1', 'zed', 'snap', 'Robot36', { fromName: 'zed' });
+    first.emit('rx:row', 'arx-1', 0, row(50));
+    expect(first.chat('zed').status).toMatchObject({ kind: 'receiving' });
+    first.r.unmount();
+
+    const second = setup();
+    const zed = second.chat('zed');
+    expect(zed.messages).toEqual([]);
+    expect(zed.status.kind).not.toBe('receiving');
+    expect(zed.hasIncomingSnap).toBe(false);
+    // The demo chat that is "receiving" by design keeps its look.
+    expect(second.chat('beatriz')?.status.kind ?? 'receiving').toBe('receiving');
+  });
 });
 
 describe('account', () => {
