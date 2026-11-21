@@ -12,8 +12,9 @@ beforeEach(() => {
 afterEach(() => {
   vi.unstubAllGlobals();
   cleanup();
-  localStorage.clear();
-  document.cookie = 'sstv_user=; path=/; max-age=0';
+  // Node-environment tests (the audio modems) have no DOM storage.
+  if (typeof localStorage !== 'undefined') localStorage.clear();
+  if (typeof document !== 'undefined') document.cookie = 'sstv_user=; path=/; max-age=0';
 });
 
 // jsdom lacks ImageData.
