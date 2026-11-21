@@ -1,0 +1,49 @@
+:root {
+  --font: "Avenir Next", Avenir, "Nunito Sans", system-ui, sans-serif;
+
+  --bg: #ffffff;
+  --bg-elev: #ffffff;
+  --bg-hover: #f2f2f2;
+  --border: #e6e6e6;
+  --border-input: #d6d6d6;
+  --border-card: #e3e3e3;
+  --text: #16191c;
+  --text-2: #6e6e6e;
+  --avatar-bg: #efefef;
+  --nav-bg: #ffffff;
+  --btn-neutral: #f0f0f0;
+
+  --blue: #0fadff;
+  --purple: #a05dcd;
+  --red: #f23c57;
+  --green: #00c67f;
+  --yellow: #fffc00;
+
+  --radius-card: 10px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #121212;
+    --bg-elev: #1e1e1e;
+    --bg-hover: #1e1e1e;
+    --border: #2a2a2a;
+    --border-input: #3a3a3c;
+    --border-card: #2a2a2a;
+    --text: #ffffff;
+    --text-2: #8e8e93;
+    --avatar-bg: #2c2c2e;
+    --nav-bg: #1c1c1e;
+    --btn-neutral: #2c2c2e;
+  }
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body, #root { height: 100%; margin: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+}
