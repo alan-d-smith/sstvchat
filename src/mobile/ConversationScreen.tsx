@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { FormEvent, MouseEvent } from 'react';
 import { Avatar } from '../components/Avatar';
 import { Icon } from '../components/Icon';
+import { GroupMenu, memberCount } from '../components/GroupMenu';
 import { StatusLine } from '../components/StatusLine';
 import { MessageList } from '../components/thread/MessageList';
 import { PresenceChips } from '../components/thread/PresenceChips';
@@ -74,8 +75,9 @@ function ConvHeader({ chat, onBack }: { chat?: Chat; onBack(): void }) {
           </span>
           <div className="m-conv__titles">
             <h1 className="m-conv__name">{chat.title}</h1>
-            {live && <StatusLine status={chat.status} />}
+            {live ? <StatusLine status={chat.status} /> : chat.isGroup && <span className="m-conv__sub">{memberCount(chat)}</span>}
           </div>
+          {chat.isGroup && <GroupMenu key={chat.id} chat={chat} size={40} />}
         </>
       )}
     </header>

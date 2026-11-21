@@ -2,12 +2,16 @@ import { ME } from '../types';
 import { useApp } from '../state/store';
 import { Avatar } from '../components/Avatar';
 import { Icon } from '../components/Icon';
+import { GroupMenu, memberCount } from '../components/GroupMenu';
 import { MessageList } from '../components/thread/MessageList';
 import { PresenceChips } from '../components/thread/PresenceChips';
 import { ChatInput } from '../components/thread/ChatInput';
 import './Conversation.css';
 
-/** Middle column: header (back, avatar, name — no call buttons) above the bordered thread card. */
+/**
+ * Middle column: header (back, avatar, name — no call buttons; groups add their member count and
+ * a menu to rename or leave) above the bordered thread card.
+ */
 export function Conversation() {
   const { chats, people, selectedChatId, openCamera, sendText } = useApp();
   const chat = chats.find((c) => c.id === selectedChatId);
@@ -39,7 +43,11 @@ export function Conversation() {
         <span className="conv__avatar">
           <Avatar people={members} size={32} />
         </span>
-        <h2 className="conv__title">{chat.title}</h2>
+        <div className="conv__titles">
+          <h2 className="conv__title">{chat.title}</h2>
+          {chat.isGroup && <span className="conv__sub">{memberCount(chat)}</span>}
+        </div>
+        {chat.isGroup && <GroupMenu key={chat.id} chat={chat} />}
       </header>
       <div className="conv__card">
         <MessageList chat={chat} />

@@ -157,7 +157,8 @@ describe('Sidebar', () => {
     render(<Sidebar />);
     fireEvent.click(screen.getByRole('button', { name: 'New chat' }));
     const dialog = screen.getByRole('dialog', { name: 'New Chat' });
-    fireEvent.click(within(dialog).getByRole('button', { name: /Moe S/ }));
+    fireEvent.click(within(dialog).getByRole('checkbox', { name: 'Moe S' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Chat' }));
     expect(api.current.selectChat).toHaveBeenCalledWith('moe');
     expect(screen.queryByRole('dialog')).toBeNull();
   });

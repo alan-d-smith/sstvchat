@@ -74,6 +74,12 @@
   text-overflow: ellipsis;
 }
 
+.m-conv__sub {
+  color: var(--text-2);
+  font-size: 12px;
+  line-height: 16px;
+}
+
 .m-conv__titles .status-line {
   margin-top: 1px;
   font-size: 12px;

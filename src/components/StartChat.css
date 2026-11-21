@@ -9,24 +9,207 @@
   display: flex;
   flex: none;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
   padding: 0 16px 10px;
   border-bottom: 1px solid var(--border);
 }
 
-.start-chat__label {
-  color: var(--text-2);
-  font-size: 12.5px;
-  font-weight: 700;
-}
+/* ---------- picked people ---------- */
 
-.start-chat__row {
+.start-chat__chips {
   display: flex;
-  gap: 8px;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-height: 72px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
 }
 
-.start-chat__input {
+.start-chat__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  max-width: 100%;
+  height: 28px;
+  padding: 0 2px 0 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--blue) 14%, var(--bg-elev));
+  color: var(--text);
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.start-chat__chip-name {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.start-chat__chip-x {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-2);
+  cursor: pointer;
+}
+
+.start-chat__chip-x:hover {
+  color: var(--text);
+}
+
+/* ---------- search / add ---------- */
+
+.start-chat__search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--border-input);
+  border-radius: 999px;
+  background: var(--bg);
+  color: var(--text-2);
+  cursor: text;
+}
+
+.start-chat__search:focus-within {
+  border-color: var(--blue);
+}
+
+.start-chat__search:has(.start-chat__input[aria-invalid='true']) {
+  border-color: var(--red);
+}
+
+.start-chat__search .start-chat__input {
   flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 15px;
+}
+
+.start-chat__search .start-chat__input::-webkit-search-cancel-button {
+  display: none;
+}
+
+.start-chat__error {
+  margin: 0;
+  color: var(--red);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+/* ---------- people ---------- */
+
+.start-chat__list {
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  padding: 6px 0 8px;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.start-chat__person {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 6px 16px;
+  color: var(--text);
+  font-size: 15px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.start-chat__person:hover {
+  background: var(--bg-hover);
+}
+
+.start-chat__person > span[aria-hidden] {
+  line-height: 0;
+}
+
+.start-chat__name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* The native checkbox stays focusable and clickable; the circle is drawn next to it. */
+.start-chat__check-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.start-chat__check {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--border-input);
+  border-radius: 50%;
+  /* White tick on the brand blue in both themes. */
+  color: #fff;
+  transition: background-color 120ms ease, border-color 120ms ease;
+}
+
+.start-chat__person.is-on .start-chat__check {
+  border-color: var(--blue);
+  background: var(--blue);
+}
+
+.start-chat__check .icon {
+  stroke-width: 3;
+}
+
+.start-chat__check-input:focus-visible + .start-chat__check {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+
+.start-chat__empty {
+  padding: 10px 16px;
+  color: var(--text-2);
+  font-size: 14px;
+}
+
+/* ---------- action ---------- */
+
+.start-chat__foot {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 16px 12px;
+  border-top: 1px solid var(--border);
+}
+
+/* The group name gets its own row above the button. */
+.start-chat__title {
+  flex: 1 1 100%;
   min-width: 0;
   height: 36px;
   padding: 0 12px;
@@ -38,17 +221,13 @@
   font-size: 15px;
 }
 
-.start-chat__input:focus {
+.start-chat__title:focus {
   border-color: var(--blue);
   outline: none;
 }
 
-.start-chat__input[aria-invalid='true'] {
-  border-color: var(--red);
-}
-
 .start-chat__go {
-  flex: none;
+  flex: 1 0 auto;
   height: 36px;
   padding: 0 14px;
   border: 0;
@@ -67,53 +246,14 @@
   cursor: default;
 }
 
-.start-chat__error {
-  margin: 0;
-  color: var(--red);
-  font-size: 12.5px;
-  font-weight: 600;
-}
-
-.start-chat__list {
-  flex: 1;
-  min-height: 0;
-  margin: 0;
-  padding: 6px 0 8px;
-  overflow-y: auto;
-  list-style: none;
-}
-
-.start-chat__person {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  padding: 6px 16px;
-  border: 0;
-  background: transparent;
-  color: var(--text);
-  font: inherit;
-  font-size: 15px;
-  text-align: left;
-  cursor: pointer;
-}
-
-.start-chat__person:hover {
-  background: var(--bg-hover);
-}
-
-.start-chat__person > span[aria-hidden] {
-  line-height: 0;
-}
-
-.start-chat__name {
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
 .start-chat__go:focus-visible,
-.start-chat__person:focus-visible {
+.start-chat__chip-x:focus-visible {
   outline: 2px solid var(--blue);
-  outline-offset: -2px;
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .start-chat__check {
+    transition: none;
+  }
 }

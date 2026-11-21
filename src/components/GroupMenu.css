@@ -1,0 +1,169 @@
+.group-menu {
+  position: relative;
+  flex: none;
+  margin-left: auto;
+}
+
+.group-menu__button {
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--btn-neutral);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.group-menu__button:hover {
+  background: color-mix(in srgb, var(--btn-neutral) 88%, var(--text));
+}
+
+.group-menu__panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  width: 240px;
+  max-width: calc(100vw - 24px);
+  padding: 6px 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  background: var(--bg-elev);
+  box-shadow: 0 8px 28px color-mix(in srgb, var(--text) 16%, transparent);
+  color: var(--text);
+  font-family: var(--font);
+}
+
+.group-menu__head {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 6px 14px 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.group-menu__name {
+  overflow: hidden;
+  font-size: 15px;
+  font-weight: 700;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.group-menu__count {
+  color: var(--text-2);
+  font-size: 12.5px;
+}
+
+.group-menu__items {
+  display: flex;
+  flex-direction: column;
+  padding-top: 4px;
+}
+
+.group-menu__item {
+  padding: 9px 14px;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 14.5px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.group-menu__item:hover {
+  background: var(--bg-hover);
+}
+
+.group-menu__item.is-danger {
+  color: var(--red);
+}
+
+.group-menu__form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 14px 6px;
+}
+
+.group-menu__note {
+  margin: 0;
+  color: var(--text-2);
+  font-size: 13.5px;
+  line-height: 1.4;
+}
+
+.group-menu__input {
+  height: 34px;
+  padding: 0 12px;
+  border: 1px solid var(--border-input);
+  border-radius: 999px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 15px;
+}
+
+.group-menu__input:focus {
+  border-color: var(--blue);
+  outline: none;
+}
+
+.group-menu__row {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.group-menu__cancel,
+.group-menu__ok {
+  height: 32px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.group-menu__cancel {
+  background: var(--btn-neutral);
+  color: var(--text);
+}
+
+.group-menu__ok {
+  background: var(--blue);
+  /* White label on the brand colours in both themes. */
+  color: #fff;
+}
+
+.group-menu__ok.is-danger {
+  background: var(--red);
+}
+
+.group-menu__ok:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.group-menu__error {
+  margin: 0;
+  padding: 4px 14px 6px;
+  color: var(--red);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.group-menu__button:focus-visible,
+.group-menu__item:focus-visible,
+.group-menu__cancel:focus-visible,
+.group-menu__ok:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: -2px;
+}

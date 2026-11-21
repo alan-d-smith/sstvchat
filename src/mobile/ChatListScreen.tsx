@@ -14,8 +14,11 @@ import './ChatListScreen.css';
 /** The user's own avatar before a name is claimed (profile button and the "My AI" chip). */
 const SELF: Person = { id: ME, name: 'Me', seed: 7, color: 'var(--blue)' };
 
-/** Bottom sheet from the compose button: chat with someone by username or pick a known person. */
-function NewChatSheet({ onClose }: { onClose(): void }) {
+/**
+ * Bottom sheet from the compose button: pick one person for a chat or several for a group (or
+ * type a username). `group` opens it as "New Group Chat".
+ */
+export function NewChatSheet({ onClose, group = false }: { onClose(): void; group?: boolean }) {
   const { setOverlay } = useApp();
   const titleId = useId();
   const sheet = useRef<HTMLDivElement>(null);
@@ -42,12 +45,13 @@ function NewChatSheet({ onClose }: { onClose(): void }) {
         }}
       >
         <div className="m-sheet__head">
-          <h2 className="m-sheet__title" id={titleId}>New Chat</h2>
+          <h2 className="m-sheet__title" id={titleId}>{group ? 'New Group Chat' : 'New Chat'}</h2>
           <button type="button" className="m-round" aria-label="Close" onClick={onClose}>
             <Icon name="close" size={20} />
           </button>
         </div>
         <StartChat
+          group={group}
           onPick={(chatId) => {
             onClose();
             setOverlay({ type: 'conversation', chatId });
