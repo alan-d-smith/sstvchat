@@ -1,0 +1,281 @@
+/*
+ * Thread pieces shared by the desktop conversation card and the mobile conversation screen.
+ * Colours come only from tokens (plus each sender's `--who`), so light and dark both work.
+ * Sizes are measured from the desktop reference; the host positions the blocks.
+ */
+
+/* ---------- message list ---------- */
+
+.thread {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 15px 11px 12px;
+  color: var(--text);
+}
+
+.thread:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: -2px;
+}
+
+.msg-group + .msg-group {
+  margin-top: 12px;
+}
+
+.msg-label {
+  display: block;
+  margin-bottom: 2px;
+  color: var(--who);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 16px;
+  letter-spacing: 0.01em;
+  overflow-wrap: anywhere;
+}
+
+.msg-bar {
+  padding: 2px 0 2px 5px;
+  border-left: 2px solid var(--who);
+}
+
+.msg {
+  margin: 0;
+}
+
+.msg__text {
+  margin: 0;
+  font-size: 16px;
+  line-height: 20px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.msg__meta {
+  margin: 1px 0 1px;
+  color: var(--text-2);
+  font-size: 11px;
+  line-height: 14px;
+}
+
+/* A two-tone text typing itself out, in the sender's colour. */
+.msg--text.is-receiving .msg__text {
+  color: var(--who);
+}
+
+.msg__caret {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  margin-left: 1px;
+  vertical-align: -0.14em;
+  background: currentColor;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .msg__caret {
+    animation: msg-caret 0.9s steps(2, jump-none) infinite;
+  }
+}
+
+@keyframes msg-caret {
+  0% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.msg--emoji {
+  font-size: 36px;
+  line-height: 36px;
+}
+
+.msg--sticker {
+  margin: 8px 0 0 3px;
+  font-size: 32px;
+  line-height: 36px;
+}
+
+/* ---------- quoted reply ---------- */
+
+.msg--quote {
+  padding-left: 2px;
+}
+
+.quote {
+  width: 330px;
+  max-width: 100%;
+  margin: 4px 0 9px;
+  padding: 5px 14px 8px 7px;
+  border: 0.5px solid var(--border-card);
+  border-radius: var(--radius-card);
+}
+
+.quote__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.quote__time {
+  flex: none;
+  color: color-mix(in srgb, var(--text-2) 70%, transparent);
+  font-size: 10px;
+  line-height: 16px;
+}
+
+.quote__text {
+  margin: 0;
+  padding: 2px 0 2px 8px;
+  border-left: 2px solid var(--who);
+  font-size: 16px;
+  line-height: 20px;
+  overflow-wrap: anywhere;
+}
+
+/* ---------- snap tile ---------- */
+
+.snap-tile {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  margin: 2px 0;
+  padding: 0 14px 0 10px;
+  border: 0.5px solid var(--border-card);
+  border-radius: var(--radius-card);
+  background: none;
+  color: var(--text-2);
+  font: inherit;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.snap-tile .icon {
+  display: block;
+  flex: none;
+  color: var(--purple);
+}
+
+.snap-tile.is-new {
+  color: var(--purple);
+  cursor: pointer;
+}
+
+.snap-tile.is-new:hover {
+  background: var(--bg-hover);
+}
+
+.snap-tile.is-new:focus-visible {
+  outline: 2px solid var(--purple);
+  outline-offset: 1px;
+}
+
+/* ---------- presence chips ---------- */
+
+.presence {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px 7.5px;
+  margin: 0;
+  padding: 22px 0 0;
+  list-style: none;
+}
+
+.presence__chip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  height: 23px;
+  padding: 0 11px 0 10px;
+  border: 1px solid color-mix(in srgb, var(--who) 14%, var(--border-card));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--who) 9%, var(--bg));
+  color: var(--who);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.presence__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Only the top of the face shows: hair and eyes peeking over the pill. */
+.presence__face {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  width: 48px;
+  height: 30px;
+  overflow: hidden;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.presence__face .avatar {
+  display: block;
+}
+
+.presence__face .avatar__disc {
+  background: transparent;
+}
+
+/* ---------- input pill ---------- */
+
+.chat-input {
+  display: flex;
+  flex: none;
+  align-items: center;
+  height: 36px;
+  padding: 0 12px;
+  border: 0.5px solid var(--border-card);
+  border-radius: 18px;
+  background: var(--bg);
+}
+
+.chat-input:focus-within {
+  border-color: color-mix(in srgb, var(--text-2) 60%, var(--border-card));
+}
+
+.chat-input__camera {
+  display: grid;
+  flex: none;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: color-mix(in srgb, var(--text) 80%, var(--bg));
+  cursor: pointer;
+}
+
+.chat-input__camera .icon {
+  display: block;
+}
+
+.chat-input__camera:focus-visible {
+  outline: 2px solid var(--blue);
+}
+
+.chat-input__field {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0 0 0 7px;
+  border: 0;
+  outline: none;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 16px;
+}
+
+.chat-input__field::placeholder {
+  color: var(--text-2);
+  opacity: 1;
+}

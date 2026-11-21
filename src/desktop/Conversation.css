@@ -1,0 +1,125 @@
+/* Desktop middle column, measured from desktop-chat.png (2x): 12px side gutters, 60px header,
+   card down to 10px above the window edge. */
+
+.conv {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  padding: 0 12px 10px;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+}
+
+.conv__header {
+  display: flex;
+  flex: none;
+  align-items: center;
+  height: 60px;
+  min-width: 0;
+}
+
+.conv__back {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--btn-neutral);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.conv__back:hover {
+  background: color-mix(in srgb, var(--btn-neutral) 88%, var(--text));
+}
+
+.conv__back:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+
+.conv__back .icon {
+  display: block;
+  margin-left: -1px;
+  stroke-width: 2.6;
+}
+
+.conv__avatar {
+  display: inline-flex;
+  flex: none;
+  margin-left: 12px;
+  border: 2px solid color-mix(in srgb, var(--text-2) 45%, var(--bg));
+  border-radius: 50%;
+}
+
+.conv__title {
+  min-width: 0;
+  margin: 0 0 0 8px;
+  overflow: hidden;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.25;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.conv__card {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-card);
+  background: var(--bg);
+}
+
+.conv__card > .presence {
+  margin-bottom: 7.5px;
+  padding-right: 11px;
+  padding-left: 15px;
+}
+
+.conv__card > .chat-input {
+  margin: 0 11px 11px;
+}
+
+/* ---------- nothing selected ---------- */
+
+.conv__empty {
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  text-align: center;
+}
+
+.conv__empty-icon {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  margin-bottom: 12px;
+  border-radius: 50%;
+  background: var(--btn-neutral);
+  color: var(--text-2);
+}
+
+.conv__empty-title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.conv__empty-sub {
+  max-width: 260px;
+  margin: 4px 0 0;
+  color: var(--text-2);
+  font-size: 14px;
+  line-height: 1.4;
+}
