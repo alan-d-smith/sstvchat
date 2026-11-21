@@ -5,6 +5,8 @@ import { Icon } from '../components/Icon';
 import { StatusLine } from '../components/StatusLine';
 import { MessageList } from '../components/thread/MessageList';
 import { PresenceChips } from '../components/thread/PresenceChips';
+import { sendEta } from '../components/thread/ChatInput';
+import { MAX_TEXT } from '../audio/audioTransport';
 import { useApp } from '../state/store';
 import { ME } from '../types';
 import type { Chat } from '../types';
@@ -112,11 +114,13 @@ function Composer({ chat }: { chat: Chat }) {
           aria-label="Send a chat"
           autoComplete="off"
           enterKeyHint="send"
+          maxLength={MAX_TEXT}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && e.nativeEvent.isComposing) e.preventDefault();
           }}
         />
+        {typed && <span className="m-compose__eta">{sendEta(typed)}</span>}
         {!typed && (
           <span className="m-compose__mic" aria-hidden="true">
             <Icon name="mic" size={22} />

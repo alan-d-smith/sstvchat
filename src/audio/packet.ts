@@ -3,7 +3,8 @@
 //
 //   'S' 'C' 0x01  LEN_hi LEN_lo  PAYLOAD[LEN]  CRC_hi CRC_lo
 //
-// PAYLOAD = UTF-8 fields joined by 0x1F: kind · from · fromName · to(comma-joined) · chatId · mode · text.
+// PAYLOAD = UTF-8 fields joined by 0x1F: kind · from · fromName · to(comma-joined) · chatId · mode · id · text.
+// `id` is a short per-message id so a receiver can drop a repeat of the same transmission.
 // CRC = CRC-16/CCITT-FALSE over PAYLOAD.
 
 export type PacketKind = 'text' | 'snap';
@@ -14,6 +15,8 @@ export interface PacketHeader {
   to: string[];
   chatId: string;
   mode: string;
+  /** Per-message id (same sender + same id = the same message heard twice). Empty/absent: none. */
+  id?: string;
 }
 export interface Packet extends PacketHeader {
   text: string;
@@ -32,8 +35,8 @@ export const MAX_PAYLOAD = 2048;
 /** Bytes on the wire around the payload: magic(3) + len(2) + crc(2). */
 export const PACKET_OVERHEAD = 7;
 
-const HEADER_FIELDS = 6; // fields before `text`
-const MIN_PAYLOAD = HEADER_FIELDS + 1; // kind char + 6 separators
+const HEADER_FIELDS = 7; // fields before `text`
+const MIN_PAYLOAD = HEADER_FIELDS + 1; // kind char + 7 separators
 
 const encoder = new TextEncoder();
 
@@ -51,6 +54,7 @@ export function encodePacket(p: Packet): Uint8Array {
     to.join(','),
     clean(p.chatId),
     clean(p.mode),
+    clean(p.id ?? ''),
     clean(p.text),
   ];
   const payload = encoder.encode(fields.join('\x1f'));
@@ -202,6 +206,7 @@ export class PacketParser {
       to: fields[3].split(',').filter((id) => id.length > 0),
       chatId: fields[4],
       mode: fields[5],
+      ...(fields[6] ? { id: fields[6] } : {}),
     };
   }
 

@@ -143,6 +143,15 @@ describe('ChatInput', () => {
     expect(onSend).not.toHaveBeenCalled();
   });
 
+  it('caps the text at 140 characters and shows roughly how long it takes to send', () => {
+    render(<ChatInput onSend={() => {}} onCamera={() => {}} />);
+    const field = screen.getByPlaceholderText('Send a chat') as HTMLInputElement;
+    expect(field.maxLength).toBe(140);
+    expect(screen.queryByText(/to send$/)).not.toBeInTheDocument();
+    fireEvent.change(field, { target: { value: 'x'.repeat(140) } });
+    expect(screen.getByText(/^≈ \d+ s to send$/).textContent).toBe('≈ 18 s to send');
+  });
+
   it('opens the camera from the camera button', () => {
     const onCamera = vi.fn();
     render(<ChatInput onSend={() => {}} onCamera={onCamera} />);

@@ -1,14 +1,15 @@
 // Transport over real audio: text as a two-tone FSK packet, snaps as an FSK header packet then
 // Robot36. Half duplex with one FIFO send queue. Incoming frames are accepted only when their
-// header addresses this device's identity. The mock transport stays behind `simulateIncoming`
-// so mock chats and the demo panel keep working.
+// header addresses this device's identity and was not sent by it. Every packet carries a short
+// message id; the same sender + id heard again (a looped recording, an echo) is ignored. The mock
+// transport stays behind `simulateIncoming` so mock chats and the demo panel keep working.
 
 import type { Handle, Transport, TransportEvents } from '../sim/transport';
 import { MODE } from '../sim/transport';
 import { rotateCW } from '../sim/rotate';
 import { encodePacket } from './packet';
 import type { Packet, PacketHeader } from './packet';
-import { FskReceiver, fskModulate } from './fsk';
+import { FskReceiver, fskDurationMs, fskModulate } from './fsk';
 import { Robot36Receiver, robot36Modulate } from './robot36';
 import type { AudioEngine } from './engine';
 
@@ -20,6 +21,22 @@ export const TEXT_MODE = 'two-tone';
 export const HEADER_GAP_MS = 300;
 /** How long to wait for the VIS code after a snap header before giving up. */
 export const VIS_TIMEOUT_MS = 4000;
+/** How long a received message id is remembered (seconds of heard audio). */
+export const REPEAT_WINDOW_S = 15 * 60;
+
+/** Longest chat text (the input's maxLength): two-tone FSK carries about 10 bytes a second. */
+export const MAX_TEXT = 140;
+/** Packet bytes around a text with typical usernames: framing 7 + 7 separators + kind + ids ≈ 40. */
+const TEXT_HEADER_BYTES = 40;
+const utf8 = new TextEncoder();
+
+/** About how long `text` takes on air, in ms. */
+export function textAirtimeMs(text: string): number {
+  return fskDurationMs(TEXT_HEADER_BYTES + utf8.encode(text).length);
+}
+
+/** Short random per-message id (4 base-36 chars). */
+export const newMessageId = () => Math.floor(Math.random() * 36 ** 4).toString(36).padStart(4, '0');
 
 const EVENTS: (keyof TransportEvents)[] = [
   'tx:queued', 'tx:start', 'tx:progress', 'tx:done', 'tx:cancelled',
@@ -80,10 +97,35 @@ export function createAudioTransport(opts: {
   let fskRate = 0;
   let warned = false;
   const rxBusy = () => rx.mode === 'text' || rx.mode === 'snap-header' || rx.mode === 'sstv';
-  const addressed = (h: PacketHeader) => h.to.includes(opts.self().id);
+  /** For this device: addressed to it, not its own transmission leaking into the mic. */
+  const addressed = (h: PacketHeader) => {
+    const me = opts.self().id;
+    return h.from !== me && h.to.includes(me);
+  };
+
+  /** Seconds of audio heard so far: the clock for remembering message ids. */
+  let heard = 0;
+  /** `from␟id` → when it was received. */
+  const seen = new Map<string, number>();
+  const seenKey = (h: PacketHeader) => (h.id ? `${h.from}${h.id}` : null);
+  const isRepeat = (h: PacketHeader) => {
+    const k = seenKey(h);
+    const at = k === null ? undefined : seen.get(k);
+    return at !== undefined && heard - at < REPEAT_WINDOW_S;
+  };
+  const remember = (h: PacketHeader) => {
+    const k = seenKey(h);
+    if (k === null) return;
+    for (const [key, at] of seen) if (heard - at >= REPEAT_WINDOW_S) seen.delete(key);
+    seen.set(k, heard);
+  };
+  const forget = (h: PacketHeader) => {
+    const k = seenKey(h);
+    if (k !== null) seen.delete(k);
+  };
 
   function onHeader(h: PacketHeader) {
-    if (!addressed(h)) {
+    if (!addressed(h) || isRepeat(h)) {
       rx = { mode: 'ignore' };
       return;
     }
@@ -102,12 +144,14 @@ export function createAudioTransport(opts: {
     rx = IDLE;
     if (cur.mode === 'text') {
       if (crcOk) {
+        remember(p);
         emit('rx:text-chunk', cur.handle, p.text);
         emit('rx:done', cur.handle);
       } else {
         emit('rx:cancelled', cur.handle);
       }
-    } else if (cur.mode === 'snap-header' && crcOk && p.kind === 'snap' && addressed(p)) {
+    } else if (cur.mode === 'snap-header' && crcOk && p.kind === 'snap' && addressed(p) && !isRepeat(p)) {
+      remember(p);
       startSstv(p);
     }
     pump();
@@ -131,7 +175,10 @@ export function createAudioTransport(opts: {
         if (mine()) emit('rx:progress', handle, q);
       },
       onDone: () => endSstv(handle, 'rx:done'),
-      onTimeout: () => endSstv(handle, 'rx:cancelled'),
+      onTimeout: () => {
+        forget(p); // nothing arrived: a repeat of this snap may still be received
+        endSstv(handle, 'rx:cancelled');
+      },
     }, { visTimeoutMs: VIS_TIMEOUT_MS });
     rx = { mode: 'sstv', handle, rx: receiver };
     emit('rx:start', handle, p.from, 'snap', MODE, metaOf(p));
@@ -146,6 +193,7 @@ export function createAudioTransport(opts: {
   }
 
   function feed(chunk: Float32Array) {
+    heard += chunk.length / engine.sampleRate;
     try {
       if (rx.mode === 'sstv') {
         rx.rx.push(chunk);
@@ -226,10 +274,11 @@ export function createAudioTransport(opts: {
     return encodePacket({
       kind,
       from: me.id,
-      fromName: me.name,
-      to: opts.recipients(chatIds),
+      fromName: me.name === me.id ? '' : me.name, // airtime: no need to repeat the address
+      to: opts.recipients(chatIds).filter((id) => id !== me.id),
       chatId,
       mode: kind === 'snap' ? MODE : '',
+      id: newMessageId(),
       text,
     });
   }

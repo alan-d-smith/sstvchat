@@ -237,7 +237,7 @@ describe('audio transport: receive', () => {
     const h = alice.t.sendText('c1', 'hello');
     expect(h).toMatch(/^atx-/);
     expect(encodePacket).toHaveBeenCalledWith({
-      kind: 'text', from: 'alice', fromName: 'Alice', to: ['bob'], chatId: 'c1', mode: '', text: 'hello',
+      kind: 'text', from: 'alice', fromName: 'Alice', to: ['bob'], chatId: 'c1', mode: '', id: expect.any(String), text: 'hello',
     });
     await air(alice, bob, carol);
 
@@ -257,7 +257,7 @@ describe('audio transport: receive', () => {
 
     alice.t.sendSnap(['c1'], portrait(10, 20, 30));
     expect(encodePacket).toHaveBeenCalledWith({
-      kind: 'snap', from: 'alice', fromName: 'Alice', to: ['bob'], chatId: 'c1', mode: 'Robot36', text: '',
+      kind: 'snap', from: 'alice', fromName: 'Alice', to: ['bob'], chatId: 'c1', mode: 'Robot36', id: expect.any(String), text: '',
     });
     // The portrait snap goes out rotated into the 320×240 Robot36 frame.
     const sent = vi.mocked(robot36Modulate).mock.calls[0][0];
@@ -288,6 +288,33 @@ describe('audio transport: receive', () => {
     const p = vi.mocked(encodePacket).mock.calls[0][0];
     expect(p.chatId).toBe('');
     expect(p.to).toEqual(expect.arrayContaining(['bob', 'carol']));
+  });
+
+  it('ignores its own transmission leaking into its mic, even when addressed to itself', () => {
+    const bob = radio('bob', 'Bob');
+    bob.hear(frame({ ...textFrame(['bob', 'carol'], 'echo'), from: 'bob' }));
+    bob.hear(frame({ ...textFrame(['bob'], ''), from: 'bob', kind: 'snap', mode: 'Robot36' }));
+    expect(bob.log).toEqual([]);
+  });
+
+  it('receives a message id once per sender; a new id is a new message', () => {
+    const bob = radio('bob', 'Bob');
+    const once = frame({ ...textFrame(['bob'], 'ok'), id: 'a1' });
+    bob.hear(once);
+    bob.hear(once); // the same transmission heard again
+    bob.hear(frame({ ...textFrame(['bob'], 'ok'), id: 'a1', from: 'dan' })); // another sender
+    bob.hear(frame({ ...textFrame(['bob'], 'ok'), id: 'b2' }));
+    expect(bob.events('rx:done')).toHaveLength(3);
+    expect(bob.events('rx:start').map((e) => e[2])).toEqual(['alice', 'dan', 'alice']);
+  });
+
+  it('a snap whose VIS never came can be received from a repeat', () => {
+    const bob = radio('bob', 'Bob');
+    const header = frame({ ...textFrame(['bob'], ''), kind: 'snap', mode: 'Robot36', id: 's1' });
+    bob.hear(header);
+    bob.hear(Float32Array.of(5)); // no VIS: timeout
+    bob.hear(header);
+    expect(bob.names()).toEqual(['rx:start', 'rx:cancelled', 'rx:start']);
   });
 
   it('cancels a text whose CRC fails', () => {

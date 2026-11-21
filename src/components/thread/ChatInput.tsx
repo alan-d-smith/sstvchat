@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { KeyboardEvent } from 'react';
 import { Icon } from '../Icon';
+import { MAX_TEXT, textAirtimeMs } from '../../audio/audioTransport';
 import './thread.css';
 
 export interface ChatInputProps {
@@ -8,7 +9,13 @@ export interface ChatInputProps {
   onCamera(): void;
 }
 
-/** "Send a chat" pill: camera button on the left, Enter sends the trimmed text and clears. */
+/** "≈ 12 s" — about how long a text takes on air (FSK is ~0.1 s per byte). */
+export const sendEta = (text: string) => `≈ ${Math.max(1, Math.round(textAirtimeMs(text) / 1000))} s`;
+
+/**
+ * "Send a chat" pill: camera button on the left, Enter sends the trimmed text and clears. Text is
+ * capped at MAX_TEXT characters, and while typing a quiet hint says how long it takes to send.
+ */
 export function ChatInput({ onSend, onCamera }: ChatInputProps) {
   const [text, setText] = useState('');
 
@@ -34,9 +41,11 @@ export function ChatInput({ onSend, onCamera }: ChatInputProps) {
         aria-label="Send a chat"
         autoComplete="off"
         enterKeyHint="send"
+        maxLength={MAX_TEXT}
         onChange={(e) => setText(e.target.value)}
         onKeyDown={onKeyDown}
       />
+      {text.trim() && <span className="chat-input__eta">{sendEta(text.trim())} to send</span>}
     </div>
   );
 }

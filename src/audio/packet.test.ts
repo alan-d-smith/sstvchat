@@ -57,8 +57,15 @@ describe('encodePacket', () => {
     const len = (bytes[3] << 8) | bytes[4];
     expect(bytes.length).toBe(len + 7);
     const payload = bytes.subarray(5, 5 + len);
-    expect(new TextDecoder().decode(payload)).toBe(['S', 'bob', 'Bob', 'alice', 'chat-alice-bob', 'Robot36', ''].join('\x1f'));
+    expect(new TextDecoder().decode(payload)).toBe(['S', 'bob', 'Bob', 'alice', 'chat-alice-bob', 'Robot36', '', ''].join('\x1f'));
     expect((bytes[5 + len] << 8) | bytes[6 + len]).toBe(crc16(payload));
+  });
+
+  it('carries an optional message id before the text', () => {
+    const { feed, events, packets } = collect();
+    feed(encodePacket({ ...textPacket, id: 'k3f9' }));
+    expect(events[1]).toMatchObject({ t: 'header', h: { kind: 'text', id: 'k3f9' } });
+    expect(packets()[0].p).toEqual({ ...textPacket, id: 'k3f9' });
   });
 
   it('strips 0x1F from fields', () => {
