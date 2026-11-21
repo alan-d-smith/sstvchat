@@ -2,7 +2,6 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useReducer,
 import type { ReactNode } from 'react';
 import { ME } from '../types';
 import type { Chat, ChatStatus, Message, Person } from '../types';
-import { chats as mockChats, people as mockPeople } from '../data/mock';
 import { MODE, createMockTransport } from '../sim/transport';
 import type { Handle, Transport } from '../sim/transport';
 import { paintRow } from '../sim/rotate';
@@ -38,7 +37,10 @@ export interface AppApi {
   cancel(h: Handle): void;
   /** Removes one message (anyone's) from this device only — nothing is sent; a saved snap image goes too. */
   deleteMessage(chatId: string, messageId: string): void;
-  demoIncoming(from: string, kind: 'snap' | 'text'): void; resetDemo(): void;
+  /** Demo panel: a simulated receive from `from` (their chat is made if there is none yet). */
+  demoIncoming(from: string, kind: 'snap' | 'text'): void;
+  /** Demo panel: back to an empty start (no chats, people or saved snaps; server groups stay, emptied). */
+  resetDemo(): void;
   /** This device's claimed username (its radio address) and avatar; null until one is claimed. */
   self: Account | null;
   /** Claims `name` through /api/claim; on 'ok' it becomes `self`. */
@@ -92,7 +94,7 @@ interface State {
   pane: PaneMode; tab: MobileTab; overlay: MobileOverlay; capture: ImageData | null;
   rxLabel: Record<Handle, string>; rxPhase: Record<Handle, RxPhase>;
   cameraTo?: string;
-  /** People met over the air or added by username (mock people are always known). */
+  /** People known here: met over the air, added by username, or in a group with us. */
   extraPeople: Record<string, Person>;
 }
 
@@ -108,7 +110,9 @@ const fresh = (chats: Chat[], extraPeople: Record<string, Person>): State => ({
   chats, selectedChatId: chats[0]?.id ?? null, pane: null, tab: 'chat', overlay: null,
   capture: null, rxLabel: {}, rxPhase: {}, cameraTo: undefined, extraPeople,
 });
-const initial = (): State => fresh(loadChats() ?? mockChats, loadPeople());
+/** A first run (nothing saved) starts with no chats, unless a test hands some in. */
+const initial = (chats: Chat[] = [], people: Record<string, Person> = {}): State =>
+  fresh(loadChats() ?? chats, { ...people, ...loadPeople() });
 
 const setStatus = (status: ChatStatus) => (c: Chat): Chat => ({ ...c, status });
 const mapMsg = (c: Chat, id: string, fn: (m: Message) => Message): Chat => ({
@@ -145,11 +149,12 @@ function reducer(s: State, a: Action): State {
       return { ...s, ...closed, chats };
     }
     case 'reset': {
-      // Server group chats stay (emptied): who is in a group is not demo data.
+      // Everything goes, except server group chats (emptied): who is in a group is not demo data,
+      // and the next poll would only bring them back as "added you" news.
       const groups = s.chats.filter((c) => c.isGroup).map((c): Chat => ({
         ...c, messages: [], hasIncomingSnap: false, status: { kind: 'tap-to-chat', medium: 'chat' },
       }));
-      return fresh([...groups, ...mockChats], {});
+      return fresh(groups, {});
     }
   }
 }
@@ -161,7 +166,7 @@ interface TxMeta { kind: 'text' | 'snap'; chatIds: string[]; msgId?: string }
  */
 interface RxMeta {
   chatId: string; kind: 'snap' | 'text'; start: number; msgId?: string; prev: ChatStatus;
-  /** Replay started by opening a viewer (mock snaps): closing that viewer stops it. */
+  /** Replay started by opening a viewer (a snap with no saved image): closing that viewer stops it. */
   viewer: boolean;
   live: boolean; rows: number; added: boolean;
 }
@@ -181,7 +186,11 @@ const SAVED = 'img:';
 const DIRECTORY_REFRESH_MS = 10_000;
 /** Stand-in address while no username is claimed; names never contain '~', so nothing matches it. */
 const NOBODY = { id: '~', name: '' };
-const MOCK_PEOPLE: Record<string, Person> = Object.fromEntries(mockPeople.map((p) => [p.id, p]));
+/**
+ * The demo panel's built-in sender while no one real is known here: its simulated receives make a
+ * "Demo" chat. Names never contain '~', so no real username (or packet) ever matches it.
+ */
+export const DEMO_SENDER = { id: '~demo', name: 'Demo' } as const;
 const COLORS = ['#0FADFF', '#A05DCD', '#E83E6B', '#3CB371', '#F2A93B'];
 
 /** A person for a username (seed = their chosen avatar when known). */
@@ -232,8 +241,15 @@ let seq = 0;
 /** Message ids stay unique across reloads (chats are saved): time + counter. */
 const nextId = (prefix: 'rx' | 'tx') => `${prefix}${Date.now().toString(36)}-${++seq}`;
 
-export function AppProvider({ children, transport: given }: { children: ReactNode; transport?: Transport }) {
-  const [state, dispatch] = useReducer(reducer, undefined, initial);
+export function AppProvider({ children, transport: given, initialChats, initialPeople }: {
+  children: ReactNode;
+  transport?: Transport;
+  /** Tests only: the chats to start with when none are saved (the app itself starts empty). */
+  initialChats?: Chat[];
+  /** Tests only: people known from the start (saved people win). */
+  initialPeople?: Record<string, Person>;
+}) {
+  const [state, dispatch] = useReducer(reducer, undefined, () => initial(initialChats, initialPeople));
   const [self, setSelfState] = useState<Account | null>(savedAccount);
   const [accountOpen, setAccountOpen] = useState(false);
   const [radio, setRadio] = useState<RadioState>('off');
@@ -300,9 +316,9 @@ export function AppProvider({ children, transport: given }: { children: ReactNod
     () => Object.fromEntries(directory.map((u) => [u.name, personFor(u.name, u.name, u.avatar)])),
     [directory],
   );
-  /** Everyone, keyed by username id: demo people keep their names, a claimed avatar wins. */
+  /** Everyone, keyed by username id: people known here keep their names, a claimed avatar wins. */
   const people = useMemo(() => {
-    const all: Record<string, Person> = { ...state.extraPeople, ...MOCK_PEOPLE };
+    const all: Record<string, Person> = { ...state.extraPeople };
     for (const u of directory) {
       const known = all[u.name];
       all[u.name] = known
@@ -373,16 +389,14 @@ export function AppProvider({ children, transport: given }: { children: ReactNod
   /** Adds a 1:1 chat (and the person, if new) at the top; stateRef is updated so lookups see it at once. */
   const addDirectChat = useCallback((personId: string, name: string): Chat => {
     const s = stateRef.current;
-    const known = MOCK_PEOPLE[personId] ?? directoryRef.current[personId] ?? s.extraPeople[personId];
+    const known = directoryRef.current[personId] ?? s.extraPeople[personId];
     const chat: Chat = {
       id: s.chats.some((c) => c.id === personId) ? `dm-${personId}` : personId,
       title: known?.name ?? name, isGroup: false, memberIds: [personId, ME],
       status: { kind: 'tap-to-chat', medium: 'chat' }, messages: [],
     };
-    // Remember everyone but the demo people, so the chat keeps a face even with the directory offline.
-    const person = MOCK_PEOPLE[personId] || s.extraPeople[personId]
-      ? undefined
-      : directoryRef.current[personId] ?? personFor(personId, name);
+    // Remember them, so the chat keeps a face even with the directory offline.
+    const person = s.extraPeople[personId] ? undefined : directoryRef.current[personId] ?? personFor(personId, name);
     dispatch({ type: 'addChat', chat, person });
     stateRef.current = {
       ...s, chats: [chat, ...s.chats],
@@ -455,7 +469,7 @@ export function AppProvider({ children, transport: given }: { children: ReactNod
     const extraPeople = { ...s.extraPeople };
     for (const g of listed.values()) {
       for (const m of g.members) {
-        if (m === me || MOCK_PEOPLE[m] || extraPeople[m]) continue;
+        if (m === me || extraPeople[m]) continue;
         extraPeople[m] = directoryRef.current[m] ?? personFor(m, m);
         changed = true;
       }
@@ -819,7 +833,7 @@ export function AppProvider({ children, transport: given }: { children: ReactNod
           else void imagesReady.current.then(() => openViewer(chatId, h));
           return;
         }
-        // 3. Never received (mock snaps): play the simulated receive once; it is saved when it finishes.
+        // 3. No saved image for it: play the simulated receive once; it is saved when it finishes.
         const from = snap?.senderId ?? chat?.memberIds.find((m) => m !== ME) ?? chatId;
         const resume = chat?.status.kind === 'receiving' ? chat.status.progress : undefined;
         const target = { chatId, msgId: snap?.id, viewer: true };
@@ -866,8 +880,9 @@ export function AppProvider({ children, transport: given }: { children: ReactNod
         });
       },
       demoIncoming: (from, kind) => {
-        const target = findChat(from);
-        if (!target) return;
+        // A sender with no chat here yet (someone from the directory, or the built-in Demo) gets one.
+        const name = from === DEMO_SENDER.id ? DEMO_SENDER.name : people[from]?.name ?? from;
+        const target = findChat(from) ?? addDirectChat(from, name);
         if (kind === 'snap') startRx({ chatId: target.id, viewer: false }, from, 'snap', makePlaceholderSnap());
         else startRx({ chatId: target.id, viewer: false }, from, 'text', CANNED);
       },

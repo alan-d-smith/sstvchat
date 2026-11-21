@@ -3,8 +3,7 @@ import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { AppProvider, useApp } from '../state/store';
 import type { AppApi } from '../state/store';
 import { createMockTransport } from '../sim/transport';
-import { chats as mockChats } from '../data/mock';
-import { saveChats, savePeople } from '../state/persist';
+import { fixtureChats, fixtures } from '../test/fixtures';
 import { ME } from '../types';
 import type { Chat, Person } from '../types';
 import { MobileApp } from './MobileApp';
@@ -25,7 +24,7 @@ function renderMobile() {
     matches: true, media: q, addEventListener: () => {}, removeEventListener: () => {},
   })) as unknown as typeof window.matchMedia;
   render(
-    <AppProvider transport={createMockTransport({ snapMs: SNAP_MS, textMs: 150 })}>
+    <AppProvider transport={createMockTransport({ snapMs: SNAP_MS, textMs: 150 })} {...start}>
       <MobileApp />
       <Probe />
     </AppProvider>,
@@ -48,13 +47,13 @@ const MEMBERS: Record<string, Person> = {
   ben: { id: 'ben', name: 'Ben', seed: 14, color: '#E83E6B' },
   jen: { id: 'jen', name: 'Jen', seed: 15, color: '#3CB371' },
 };
-function withGroup() {
-  saveChats([GROUP, ...mockChats]);
-  savePeople(MEMBERS);
-}
+/** What the store starts from: the fixtures by default. */
+let start = fixtures();
+const withGroup = () => { start = fixtures({ chats: [GROUP, ...fixtureChats], people: MEMBERS }); };
 const readout = () => screen.getByTestId('viewer-readout');
 
 beforeEach(() => {
+  start = fixtures();
   vi.useFakeTimers();
   const ctx = { putImageData: vi.fn() } as unknown as CanvasRenderingContext2D;
   vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(ctx as never);

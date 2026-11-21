@@ -3,10 +3,9 @@ import { renderHook, act } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { AppProvider, recipientsFor, useApp } from './store';
 import type { Transport, TransportEvents } from '../sim/transport';
-import { chats as mockChats } from '../data/mock';
+import { fixtureChats, fixtures } from '../test/fixtures';
 import { ME } from '../types';
 import type { Chat } from '../types';
-import { saveChats } from './persist';
 
 vi.mock('../media/placeholder', () => ({
   makePlaceholderSnap: () => new ImageData(240, 320),
@@ -40,11 +39,14 @@ function setup() {
     matches: false, media: q, addEventListener: () => {}, removeEventListener: () => {},
   })) as unknown as typeof window.matchMedia;
   const { transport, emit } = fakeTransport();
-  const wrapper = ({ children }: { children: ReactNode }) => <AppProvider transport={transport}>{children}</AppProvider>;
+  const wrapper = ({ children }: { children: ReactNode }) => <AppProvider transport={transport} {...start}>{children}</AppProvider>;
   const r = renderHook(() => useApp(), { wrapper });
   const chat = (id: string) => r.result.current.chats.find((c) => c.id === id)!;
   return { r, transport, emit, chat, api: () => r.result.current };
 }
+
+/** What the store starts from (when nothing is saved): the fixtures by default. */
+let start = fixtures();
 
 /** A group chat as synced from the server. */
 const group = (id: string, members: string[], title = 'Roomies'): Chat => ({
@@ -71,6 +73,7 @@ function mockApi(handlers: { claim?: (body: Record<string, unknown>) => number; 
 
 beforeEach(() => {
   localStorage.clear();
+  start = fixtures();
   vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'setTimeout', 'clearTimeout', 'Date'] });
 });
 afterEach(() => { vi.useRealTimers(); });
@@ -86,14 +89,14 @@ describe('incoming routing', () => {
     expect(chat('zed').messages.at(-1)).toMatchObject({ senderId: 'zed', type: 'text', text: 'yo' });
     expect(chat('zed').status).toMatchObject({ kind: 'new-chat' });
     // Nothing leaked into the chat the sender named (that is "moe" on *their* device).
-    expect(chat('moe').messages).toEqual(mockChats.find((c) => c.id === 'moe')!.messages);
+    expect(chat('moe').messages).toEqual(fixtureChats.find((c) => c.id === 'moe')!.messages);
     // A second message from the same sender reuses the chat.
     emit('rx:start', 'arx-2', 'zed', 'text', 'two-tone', { fromName: 'zed' });
     expect(api().chats.filter((c) => c.id.includes('zed'))).toHaveLength(1);
   });
 
   it('routes to the named group when the sender is in it, else to the 1:1 chat with the sender', () => {
-    saveChats([...mockChats, group('g_roomies01', ['sophie', 'ben', 'jen'])]);
+    start = fixtures({ chats: [...fixtureChats, group('g_roomies01', ['sophie', 'ben', 'jen'])] });
     const { emit, chat } = setup();
     emit('rx:start', 'arx-1', 'ben', 'text', 'two-tone', { chatId: 'g_roomies01' });
     expect(chat('g_roomies01').messages.at(-1)).toMatchObject({ senderId: 'ben', state: 'receiving' });
@@ -103,7 +106,7 @@ describe('incoming routing', () => {
 
   it('addresses chat members minus this device', () => {
     const chats = [
-      ...mockChats, { ...mockChats[0], id: 'zed', memberIds: ['zed', ME] },
+      ...fixtureChats, { ...fixtureChats[0], id: 'zed', memberIds: ['zed', ME] },
       group('roomies', ['sophie', 'ben', 'jen']), group('starfish', ['jen', 'ben', 'priya']),
     ];
     expect(recipientsFor(chats, ['roomies'], 'ben')).toEqual(['sophie', 'jen']);
@@ -186,7 +189,7 @@ describe('snap buffers', () => {
 });
 
 describe('persistence', () => {
-  it('restores chats after a reload and mock data after resetDemo', () => {
+  it('restores chats after a reload, and resetDemo clears them', () => {
     const first = setup();
     first.emit('rx:start', 'arx-1', 'zed', 'text', 'two-tone', { fromName: 'zed' });
     first.emit('rx:text-chunk', 'arx-1', 'still here');
@@ -197,7 +200,7 @@ describe('persistence', () => {
     expect(second.chat('zed').messages.at(-1)).toMatchObject({ text: 'still here' });
     expect(second.api().people.zed).toBeDefined();
     act(() => second.api().resetDemo());
-    expect(second.api().chats.map((c) => c.id)).toEqual(mockChats.map((c) => c.id));
+    expect(second.api().chats).toEqual([]);
   });
   it('keeps message ids unique across reloads, so a new message never rewrites a saved one', async () => {
     const first = setup();
@@ -299,7 +302,7 @@ describe('directory', () => {
     const { api } = setup();
     await flush();
     expect(api().people.zed).toMatchObject({ id: 'zed', name: 'zed', seed: 42 });
-    // A demo person keeps their name but shows the avatar their claimed name picked.
+    // A person known here keeps their name but shows the avatar their claimed name picked.
     expect(api().people.moe).toMatchObject({ name: 'Moe S', seed: 7 });
     list = [{ name: 'zed', avatar: 43 }];
     await act(async () => { vi.advanceTimersByTime(10_000); });

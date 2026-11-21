@@ -13,7 +13,7 @@ import './StartChat.css';
 const BAD_NAME = 'Usernames are 2–12 characters: a–z, 0–9 or _.';
 
 /**
- * New chat: pick people from everyone known (claimed usernames and the demo people), or type a
+ * New chat: pick people from everyone known (people met here and claimed usernames), or type a
  * username and press Enter to add it. One person opens the 1:1 chat; two or more make a group on
  * the server (optionally named) and open it. `group` starts in group mode ("New Group Chat"): the
  * name field shows from the start and Create needs at least two people.

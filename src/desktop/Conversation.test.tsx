@@ -10,9 +10,9 @@ const api = vi.hoisted(() => ({
 }));
 
 vi.mock('../state/store', async () => {
-  const { people, chats } = await import('../data/mock');
+  const { fixturePeople: people, fixtureChats: chats } = await import('../test/fixtures');
   const { ME } = await import('../types');
-  // A server group chat with its members, next to the mock 1:1 chats.
+  // A server group chat with its members, next to the fixture 1:1 chats.
   const members = [
     { id: 'sophie', name: 'Sophie', seed: 13, color: '#0FADFF' },
     { id: 'ben', name: 'Ben', seed: 14, color: '#E83E6B' },

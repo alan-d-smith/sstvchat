@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AppApi } from '../state/store';
-import { chats as mockChats, people } from '../data/mock';
+import { fixtureChats, fixturePeople as people } from '../test/fixtures';
 import { ME } from '../types';
 import type { Chat } from '../types';
 
@@ -15,13 +15,13 @@ vi.mock('./RightPane', () => ({ RightPane: () => <div data-testid="right-pane" /
 import { Sidebar } from './Sidebar';
 import { DesktopApp } from './DesktopApp';
 
-/** The mock chats with a server group chat that has a new message, third in the list. */
+/** The fixture chats with a server group chat that has a new message, third in the list. */
 const GROUP: Chat = {
   id: 'g_starfish01', title: 'Starfish Squad ✨', isGroup: true, memberIds: ['priya', 'tomasz', ME],
   status: { kind: 'new-chat', medium: 'chat', time: '16m' },
   messages: [{ id: 's1', senderId: 'priya', type: 'text', text: 'who is bringing snacks Saturday?' }],
 };
-const chats = [...mockChats.slice(0, 2), GROUP, ...mockChats.slice(2)];
+const chats = [...fixtureChats.slice(0, 2), GROUP, ...fixtureChats.slice(2)];
 
 function fakeApi(over: Partial<AppApi> = {}): AppApi {
   return {
@@ -84,7 +84,7 @@ beforeEach(() => {
 });
 
 describe('Sidebar', () => {
-  it('renders one row per chat in mock order', () => {
+  it('renders one row per chat in list order', () => {
     render(<Sidebar />);
     expect(rowNames()).toEqual(chats.map((c) => c.title));
   });

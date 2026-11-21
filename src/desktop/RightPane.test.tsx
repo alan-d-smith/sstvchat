@@ -4,6 +4,7 @@ import { AppProvider, useApp } from '../state/store';
 import type { AppApi } from '../state/store';
 import { createMockTransport } from '../sim/transport';
 import { RightPane } from './RightPane';
+import { fixtures } from '../test/fixtures';
 
 vi.mock('../media/placeholder', () => ({
   makePlaceholderSnap: () => new ImageData(240, 320),
@@ -20,7 +21,7 @@ function setup() {
     matches: false, media: q, addEventListener: () => {}, removeEventListener: () => {},
   })) as unknown as typeof window.matchMedia;
   const utils = render(
-    <AppProvider transport={createMockTransport({ snapMs: 900, textMs: 150 })}>
+    <AppProvider {...fixtures()} transport={createMockTransport({ snapMs: 900, textMs: 150 })}>
       <Probe />
       <RightPane />
     </AppProvider>,

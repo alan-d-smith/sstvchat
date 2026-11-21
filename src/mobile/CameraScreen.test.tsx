@@ -3,6 +3,7 @@ import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { AppProvider, useApp } from '../state/store';
 import { CameraScreen } from './CameraScreen';
 import { PreviewScreen } from './PreviewScreen';
+import { fixtures } from '../test/fixtures';
 
 vi.mock('../media/placeholder', () => ({
   makePlaceholderSnap: () => new ImageData(240, 320),
@@ -50,7 +51,7 @@ describe('CameraScreen and PreviewScreen (mobile)', () => {
   });
 
   it('shows the zoom stops with 1x selected and the lens categories', () => {
-    render(<AppProvider><Harness /></AppProvider>);
+    render(<AppProvider {...fixtures()}><Harness /></AppProvider>);
 
     const zoom = screen.getByRole('radiogroup', { name: 'Zoom' });
     expect(within(zoom).getAllByRole('radio').map((r) => r.textContent)).toEqual(['.5', '1x', '2.5']);
@@ -66,7 +67,7 @@ describe('CameraScreen and PreviewScreen (mobile)', () => {
   });
 
   it('shutter opens the preview, which draws the capture and closes back to the camera', () => {
-    render(<AppProvider><Harness /></AppProvider>);
+    render(<AppProvider {...fixtures()}><Harness /></AppProvider>);
 
     fireEvent.click(screen.getByRole('button', { name: 'Take snap' }));
     expect(overlay()).toEqual({ type: 'preview' });
@@ -79,7 +80,7 @@ describe('CameraScreen and PreviewScreen (mobile)', () => {
   });
 
   it('Send To opens the recipient picker, keeping the camera recipient', () => {
-    render(<AppProvider><Harness /></AppProvider>);
+    render(<AppProvider {...fixtures()}><Harness /></AppProvider>);
 
     fireEvent.click(screen.getByRole('button', { name: 'camera for julie' }));
     fireEvent.click(screen.getByRole('button', { name: 'Take snap' }));
@@ -96,7 +97,7 @@ describe('CameraScreen and PreviewScreen (mobile)', () => {
       configurable: true,
       value: { getUserMedia: vi.fn().mockResolvedValue(stream) },
     });
-    const { container } = render(<AppProvider><Harness /></AppProvider>);
+    const { container } = render(<AppProvider {...fixtures()}><Harness /></AppProvider>);
     await act(async () => {});
     const video = container.querySelector('video')!;
     Object.defineProperties(video, { videoWidth: { value: 640 }, videoHeight: { value: 480 } });
@@ -116,7 +117,7 @@ describe('CameraScreen and PreviewScreen (mobile)', () => {
   it('sends a photo from the gallery through the same preview', async () => {
     const bitmap = { width: 300, height: 400, close: vi.fn() };
     vi.stubGlobal('createImageBitmap', vi.fn().mockResolvedValue(bitmap));
-    render(<AppProvider><Harness /></AppProvider>);
+    render(<AppProvider {...fixtures()}><Harness /></AppProvider>);
 
     const input = screen.getByTestId('gallery-input') as HTMLInputElement;
     expect(input).toHaveAttribute('accept', 'image/*');

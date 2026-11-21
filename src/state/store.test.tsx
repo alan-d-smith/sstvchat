@@ -1,12 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import type { ReactNode } from 'react';
-import { AppProvider, useApp } from './store';
+import { AppProvider, DEMO_SENDER, useApp } from './store';
 import { createMockTransport } from '../sim/transport';
 import { ME } from '../types';
 import type { Chat } from '../types';
-import { chats as mockChats } from '../data/mock';
-import { saveChats } from './persist';
+import { fixtureChats, fixtures } from '../test/fixtures';
 
 vi.mock('../media/placeholder', () => ({
   makePlaceholderSnap: () => new ImageData(240, 320),
@@ -25,7 +24,7 @@ function setup(mobile = false) {
   mockMedia(mobile);
   const transport = createMockTransport({ snapMs: 900, textMs: 150 });
   const wrapper = ({ children }: { children: ReactNode }) => (
-    <AppProvider transport={transport}>{children}</AppProvider>
+    <AppProvider transport={transport} {...start}>{children}</AppProvider>
   );
   return renderHook(() => useApp(), { wrapper });
 }
@@ -36,19 +35,32 @@ const GROUP: Chat = {
   status: { kind: 'opened', medium: 'chat', time: '1h' },
   messages: [{ id: 'r1', senderId: 'sophie', type: 'text', text: 'omg almost missed my flight' }],
 };
-/** Starts from the mock chats plus GROUP, as if saved by an earlier session. */
-const withGroup = () => saveChats([...mockChats, GROUP]);
+/** What the store starts from (when nothing is saved): the fixtures by default. */
+let start: ReturnType<typeof fixtures> | Record<string, never> = fixtures();
+/** Starts from the fixture chats plus GROUP. */
+const withGroup = () => { start = fixtures({ chats: [...fixtureChats, GROUP] }); };
 
 const advance = (ms: number) => act(async () => { vi.advanceTimersByTime(ms); });
 const chat = (r: ReturnType<typeof setup>, id: string) => r.result.current.chats.find((c) => c.id === id)!;
 
-beforeEach(() => { vi.useFakeTimers(); });
+beforeEach(() => {
+  vi.useFakeTimers();
+  start = fixtures();
+});
 afterEach(() => { vi.useRealTimers(); });
 
 describe('AppProvider', () => {
+  it('starts a first run (nothing saved) with no chats and no people', () => {
+    start = {};
+    const r = setup();
+    expect(r.result.current.chats).toEqual([]);
+    expect(r.result.current.people).toEqual({});
+    expect(r.result.current.selectedChatId).toBeNull();
+  });
+
   it('has initial state', () => {
     const r = setup();
-    expect(r.result.current.selectedChatId).toBe(mockChats[0].id);
+    expect(r.result.current.selectedChatId).toBe(fixtureChats[0].id);
     expect(r.result.current.pane).toBeNull();
     expect(r.result.current.tab).toBe('chat');
   });
@@ -164,13 +176,45 @@ describe('AppProvider', () => {
     expect((done.messages.at(-1) as { state?: string }).state).toBeUndefined();
   });
 
-  it('resetDemo restores mock state', () => {
+  it('resetDemo clears to an empty start, with no dummy chats restored', () => {
     const r = setup();
     act(() => r.result.current.sendText('beatriz', 'hi'));
     act(() => r.result.current.openCamera());
     act(() => r.result.current.resetDemo());
-    expect(chat(r, 'beatriz').messages.at(-1)!.id).toBe('b1');
+    expect(r.result.current.chats).toEqual([]);
+    expect(r.result.current.people).toEqual({});
+    expect(r.result.current.selectedChatId).toBeNull();
     expect(r.result.current.pane).toBeNull();
+  });
+
+  it('resetDemo keeps server group chats, emptied', () => {
+    withGroup();
+    const r = setup();
+    act(() => r.result.current.resetDemo());
+    expect(r.result.current.chats).toEqual([
+      { ...GROUP, messages: [], hasIncomingSnap: false, status: { kind: 'tap-to-chat', medium: 'chat' } },
+    ]);
+  });
+
+  it('demoIncoming from someone known but without a chat makes their chat', async () => {
+    start = fixtures({ chats: [] });
+    const r = setup();
+    act(() => r.result.current.demoIncoming('moe', 'text'));
+    expect(r.result.current.chats[0]).toMatchObject({ id: 'moe', title: 'Moe S', isGroup: false, memberIds: ['moe', ME] });
+    await advance(600);
+    expect(chat(r, 'moe').messages.at(-1)).toMatchObject({ senderId: 'moe', type: 'text' });
+    expect(chat(r, 'moe').status).toMatchObject({ kind: 'new-chat' });
+  });
+
+  it('demoIncoming from the built-in Demo sender makes a "Demo" chat', async () => {
+    start = {};
+    const r = setup();
+    act(() => r.result.current.demoIncoming(DEMO_SENDER.id, 'snap'));
+    expect(r.result.current.chats).toHaveLength(1);
+    expect(r.result.current.chats[0]).toMatchObject({ title: 'Demo', memberIds: [DEMO_SENDER.id, ME] });
+    expect(r.result.current.people[DEMO_SENDER.id]).toMatchObject({ name: 'Demo' });
+    await advance(1200);
+    expect(r.result.current.chats[0]).toMatchObject({ hasIncomingSnap: true, status: { kind: 'new-snap' } });
   });
 
   it('queued rx maps to the requested chat and gets a label once started', async () => {
@@ -202,7 +246,8 @@ describe('AppProvider', () => {
     act(() => r.result.current.demoIncoming('julie', 'snap'));
     act(() => r.result.current.resetDemo());
     await advance(3000);
-    expect(r.result.current.chats.find((c) => c.id === 'julie')!.status).toMatchObject({ kind: 'received', time: '16m' });
+    // The cancelled receive brings nothing back.
+    expect(r.result.current.chats).toEqual([]);
     expect(Object.keys(r.result.current.rxLabel)).toHaveLength(0);
   });
 

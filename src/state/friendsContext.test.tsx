@@ -14,6 +14,7 @@ import type { FriendsApi } from './friendsContext';
 import { FriendsLayer } from '../components/FriendsLayer';
 import { ME } from '../types';
 import { ChatListScreen } from '../mobile/ChatListScreen';
+import { fixtures } from '../test/fixtures';
 import { Sidebar } from '../desktop/Sidebar';
 
 vi.mock('../media/placeholder', () => ({ makePlaceholderSnap: () => new ImageData(240, 320) }));
@@ -84,7 +85,7 @@ function Probe() {
 
 function mount(ui: React.ReactNode, mobile = true, transport: Transport = createMockTransport({ snapMs: 900, textMs: 150 })) {
   return render(
-    <AppProvider transport={transport}>
+    <AppProvider transport={transport} {...fixtures()}>
       <FriendsProvider>
         {ui}
         <FriendsLayer mobile={mobile} />

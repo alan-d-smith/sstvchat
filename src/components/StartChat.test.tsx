@@ -12,6 +12,7 @@ import { FriendsProvider } from '../state/friendsContext';
 import { Conversation } from '../desktop/Conversation';
 import { ME } from '../types';
 import { StartChat } from './StartChat';
+import { fixtures } from '../test/fixtures';
 
 vi.mock('../media/placeholder', () => ({ makePlaceholderSnap: () => new ImageData(240, 320) }));
 
@@ -58,7 +59,7 @@ function Probe() {
 
 function mount(ui: React.ReactNode) {
   return render(
-    <AppProvider transport={createMockTransport()}>
+    <AppProvider {...fixtures()} transport={createMockTransport()}>
       <FriendsProvider>
         {ui}
         <Probe />

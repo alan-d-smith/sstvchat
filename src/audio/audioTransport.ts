@@ -2,7 +2,7 @@
 // Robot36. Half duplex with one FIFO send queue. Incoming frames are accepted only when their
 // header addresses this device's identity and was not sent by it. Every packet carries a short
 // message id; the same sender + id heard again (a looped recording, an echo) is ignored. The mock
-// transport stays behind `simulateIncoming` so mock chats and the demo panel keep working.
+// transport stays behind `simulateIncoming` so the demo panel keeps working.
 
 import type { Handle, Transport, TransportEvents } from '../sim/transport';
 import { MODE } from '../sim/transport';

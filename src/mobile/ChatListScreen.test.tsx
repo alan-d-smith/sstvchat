@@ -5,6 +5,7 @@ import type { AppApi } from '../state/store';
 import { act } from '@testing-library/react';
 import { createMockTransport } from '../sim/transport';
 import { MobileApp } from './MobileApp';
+import { fixtures } from '../test/fixtures';
 
 vi.mock('../media/placeholder', () => ({
   makePlaceholderSnap: () => new ImageData(240, 320),
@@ -41,7 +42,7 @@ function renderMobile() {
   mockMedia(true);
   const transport = createMockTransport({ snapMs: 900, textMs: 150 });
   render(
-    <AppProvider transport={transport}>
+    <AppProvider {...fixtures()} transport={transport}>
       <MobileApp />
       <Probe />
     </AppProvider>,

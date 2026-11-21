@@ -3,11 +3,12 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { AppProvider } from '../state/store';
 import { createMockTransport } from '../sim/transport';
 import { SendToList } from './SendToList';
+import { fixtures } from '../test/fixtures';
 
 function setup(initial?: string) {
   const onSend = vi.fn();
   render(
-    <AppProvider transport={createMockTransport()}>
+    <AppProvider {...fixtures()} transport={createMockTransport()}>
       <SendToList initial={initial} onSend={onSend} />
     </AppProvider>,
   );
