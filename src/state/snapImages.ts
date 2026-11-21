@@ -1,47 +1,77 @@
-// Received snap images, saved per message so a snap is never received twice. Raw RGBA in
-// IndexedDB (no canvas encoding needed); only the newest KEEP images are kept. Every call is a
-// no-op where IndexedDB is missing (tests, private modes that block it).
+// Received snap images, saved per message in localStorage so a snap is never received twice and
+// survives reloads. Each image is a JPEG data URL under `sstv.snap.<id>`; `sstv.snaps` lists the
+// ids oldest first. Only the newest KEEP images are kept, and the oldest are evicted early if the
+// browser's storage quota runs out. Every call is a no-op where localStorage or canvas is missing
+// (tests, private modes that block storage).
 
-const DB_NAME = 'sstv';
-const STORE = 'snaps';
-const KEEP = 30;
+const INDEX_KEY = 'sstv.snaps';
+const PREFIX = 'sstv.snap.';
+const KEEP = 40;
+const QUALITY = 0.85;
 
-interface Row { w: number; h: number; data: Uint8ClampedArray }
+function readIndex(): string[] {
+  try {
+    const ids: unknown = JSON.parse(localStorage.getItem(INDEX_KEY) ?? '[]');
+    return Array.isArray(ids) ? ids.filter((x): x is string => typeof x === 'string') : [];
+  } catch {
+    return [];
+  }
+}
 
-let dbPromise: Promise<IDBDatabase | null> | null = null;
+function writeIndex(ids: string[]) {
+  try {
+    localStorage.setItem(INDEX_KEY, JSON.stringify(ids));
+  } catch {
+    /* storage blocked */
+  }
+}
 
-function db(): Promise<IDBDatabase | null> {
-  if (dbPromise) return dbPromise;
-  dbPromise = new Promise((resolve) => {
-    if (typeof indexedDB === 'undefined') {
-      resolve(null);
-      return;
-    }
+function drop(id: string) {
+  try {
+    localStorage.removeItem(PREFIX + id);
+  } catch {
+    /* storage blocked */
+  }
+}
+
+function toDataUrl(img: ImageData): string | null {
+  try {
+    const canvas = document.createElement('canvas');
+    canvas.width = img.width;
+    canvas.height = img.height;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+    ctx.putImageData(img, 0, 0);
+    return canvas.toDataURL('image/jpeg', QUALITY);
+  } catch {
+    return null;
+  }
+}
+
+function fromDataUrl(url: string): Promise<ImageData | null> {
+  return new Promise((resolve) => {
     try {
-      const req = indexedDB.open(DB_NAME, 1);
-      req.onupgradeneeded = () => req.result.createObjectStore(STORE);
-      req.onsuccess = () => resolve(req.result);
-      req.onerror = () => resolve(null);
-      req.onblocked = () => resolve(null);
+      const el = new Image();
+      el.onload = () => {
+        try {
+          const canvas = document.createElement('canvas');
+          canvas.width = el.naturalWidth;
+          canvas.height = el.naturalHeight;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) return resolve(null);
+          ctx.drawImage(el, 0, 0);
+          resolve(ctx.getImageData(0, 0, canvas.width, canvas.height));
+        } catch {
+          resolve(null);
+        }
+      };
+      el.onerror = () => resolve(null);
+      el.src = url;
     } catch {
       resolve(null);
     }
   });
-  return dbPromise;
 }
-
-const done = (tx: IDBTransaction) =>
-  new Promise<void>((resolve, reject) => {
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-    tx.onabort = () => reject(tx.error);
-  });
-
-const result = <T>(req: IDBRequest<T>) =>
-  new Promise<T>((resolve, reject) => {
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
 
 /** Ids sort by creation time, so the oldest images are the first keys. */
 export function newImageId(): string {
@@ -49,46 +79,47 @@ export function newImageId(): string {
 }
 
 export async function saveSnapImage(id: string, img: ImageData): Promise<void> {
-  try {
-    const d = await db();
-    if (!d) return;
-    const tx = d.transaction(STORE, 'readwrite');
-    const store = tx.objectStore(STORE);
-    const row: Row = { w: img.width, h: img.height, data: new Uint8ClampedArray(img.data) };
-    store.put(row, id);
-    const keys = (await result(store.getAllKeys())).map(String).sort();
-    for (const k of keys.slice(0, Math.max(0, keys.length - KEEP))) store.delete(k);
-    await done(tx);
-  } catch (e) {
-    console.warn('[snaps] could not save image', e);
+  const url = toDataUrl(img);
+  if (!url) return;
+  let ids = readIndex().filter((x) => x !== id);
+  while (ids.length >= KEEP) drop(ids.shift()!);
+  for (;;) {
+    try {
+      localStorage.setItem(PREFIX + id, url);
+      ids.push(id);
+      writeIndex(ids);
+      return;
+    } catch (e) {
+      // Quota exceeded: evict the oldest saved image and retry; give up when nothing is left.
+      if (ids.length === 0) {
+        console.warn('[snaps] could not save image', e);
+        return;
+      }
+      drop(ids.shift()!);
+      writeIndex(ids);
+    }
   }
 }
 
 export async function loadSnapImages(): Promise<Map<string, ImageData>> {
   const out = new Map<string, ImageData>();
-  try {
-    const d = await db();
-    if (!d) return out;
-    const store = d.transaction(STORE, 'readonly').objectStore(STORE);
-    const [keys, rows] = await Promise.all([result(store.getAllKeys()), result(store.getAll() as IDBRequest<Row[]>)]);
-    keys.forEach((k, i) => {
-      const r = rows[i];
-      if (r?.data) out.set(String(k), new ImageData(new Uint8ClampedArray(r.data), r.w, r.h));
-    });
-  } catch (e) {
-    console.warn('[snaps] could not load images', e);
-  }
+  const ids = readIndex();
+  const loaded = await Promise.all(
+    ids.map(async (id) => {
+      let url: string | null = null;
+      try {
+        url = localStorage.getItem(PREFIX + id);
+      } catch {
+        /* storage blocked */
+      }
+      return [id, url ? await fromDataUrl(url) : null] as const;
+    }),
+  );
+  for (const [id, img] of loaded) if (img) out.set(id, img);
   return out;
 }
 
 export async function clearSnapImages(): Promise<void> {
-  try {
-    const d = await db();
-    if (!d) return;
-    const tx = d.transaction(STORE, 'readwrite');
-    tx.objectStore(STORE).clear();
-    await done(tx);
-  } catch {
-    /* nothing saved */
-  }
+  for (const id of readIndex()) drop(id);
+  writeIndex([]);
 }
