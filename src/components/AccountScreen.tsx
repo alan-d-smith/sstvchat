@@ -17,6 +17,8 @@ function message(r: Exclude<ClaimResult, 'ok'>, name: string): string {
     case 'taken':
     case 'wrong-password': return `“${normalizeName(name)}” is taken — enter its password to get it back.`;
     case 'too-many': return 'Too many tries, wait 15 minutes.';
+    case 'not-configured': return 'The username service isn’t set up on the server yet (Upstash Redis env vars missing).';
+    case 'server': return 'The username server hit an error. Try again in a moment.';
     case 'error': return 'Couldn’t reach the server. Try again.';
   }
 }

@@ -8,7 +8,7 @@ export { NAME_RE };
 
 export interface Account { id: string; name: string; avatar: number }
 export interface DirectoryUser { name: string; avatar: number | null }
-export type ClaimResult = 'ok' | 'invalid' | 'taken' | 'wrong-password' | 'too-many' | 'error';
+export type ClaimResult = 'ok' | 'invalid' | 'taken' | 'wrong-password' | 'too-many' | 'not-configured' | 'server' | 'error';
 
 export const USER_COOKIE = 'sstv_user';
 const TOKEN_KEY = 'sstv.token';
@@ -89,6 +89,7 @@ export function saveAccount(a: Account): void {
 
 const RESULTS: Record<number, ClaimResult> = {
   200: 'ok', 400: 'invalid', 401: 'wrong-password', 409: 'taken', 429: 'too-many',
+  500: 'server', 503: 'not-configured',
 };
 
 export async function claimName(name: string, opts: { avatar: number; password?: string }): Promise<ClaimResult> {
