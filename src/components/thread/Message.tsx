@@ -2,6 +2,7 @@ import type { CSSProperties } from 'react';
 import { ME } from '../../types';
 import type { Message as Msg, Person } from '../../types';
 import { Icon } from '../Icon';
+import { Spectrogram } from './Spectrogram';
 
 type People = Record<string, Person>;
 
@@ -34,12 +35,8 @@ export function Message({ message: m, people, onOpenSnap, snapProgress }: Messag
       return (
         <div className={`msg msg--text${m.state ? ` is-${m.state}` : ''}`}>
           {m.state === 'receiving' ? (
-            // The two-tone header has arrived: show "typing" dots until the whole message is in.
-            <p className="msg__typing" role="status" aria-label="Receiving a message">
-              <i />
-              <i />
-              <i />
-            </p>
+            // The two-tone header has arrived: show the signal being read until the whole message is in.
+            <Spectrogram msgId={m.id} text={m.text} />
           ) : (
             <p className="msg__text">{m.text}</p>
           )}
