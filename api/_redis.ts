@@ -10,6 +10,10 @@ export function redisStore(): AccountStore {
     set: async (key, value) => {
       await redis.set(key, value);
     },
+    incr: (key) => redis.incr(key),
+    expire: async (key, seconds) => {
+      await redis.expire(key, seconds);
+    },
     userKeys: async () => {
       const keys: string[] = [];
       let cursor = '0';

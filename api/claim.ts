@@ -1,7 +1,13 @@
 import { claim } from './_accounts.js';
+import { scryptPasswords } from './_password.js';
 import { json, redisStore } from './_redis.js';
 
-/** POST /api/claim { name, token, avatar? } → 200 claimed (or already ours) · 400 bad name · 409 taken. */
+// Node.js runtime (the default for api/*.ts): scrypt and timingSafeEqual come from node:crypto.
+
+/**
+ * POST /api/claim { name, token, password?, avatar? } → 200 claimed / ours / recovered with the
+ * password · 400 bad input · 401 wrong password · 409 taken · 429 too many password guesses.
+ */
 export async function POST(request: Request): Promise<Response> {
   let body: unknown;
   try {
@@ -10,7 +16,7 @@ export async function POST(request: Request): Promise<Response> {
     return json({ error: 'invalid-json' }, 400);
   }
   try {
-    const r = await claim(redisStore(), body);
+    const r = await claim(redisStore(), scryptPasswords, body);
     return json(r.body, r.status);
   } catch (e) {
     console.error('claim failed', e);
