@@ -277,7 +277,11 @@ export function speaker(x: Float32Array, rate: number, profile = 0): Float32Arra
   return filter(x, [...stages[profile % stages.length], rbj.highpass(rate, 100, 0.7)]);
 }
 
-/** Room-ish channel: early reflection + exponentially decaying diffuse tail at `drDb` direct-to-reverb. */
+/**
+ * Room-ish channel: one early reflection (table/wall: `early` gain, 1–4 ms delay drawn from the
+ * seed, so its comb notches land somewhere different each time) + an exponentially decaying
+ * diffuse tail at `drDb` direct-to-reverb.
+ */
 export function room(sig: Float32Array, rate: number, seed: number, rt60 = 0.3, drDb = 8, early = 0.4): Float32Array {
   const rand = mulberry32(seed);
   const len = Math.round(rate * rt60);
@@ -292,7 +296,7 @@ export function room(sig: Float32Array, rate: number, seed: number, rt60 = 0.3, 
   }
   const k = Math.sqrt(Math.pow(10, -drDb / 10) / e);
   for (let t = 0; t < gains.length; t++) gains[t] *= k;
-  delays.push(Math.round(rate * 0.0013));
+  delays.push(Math.round(rate * (0.001 + 0.003 * rand())));
   gains.push(early);
   const y = new Float32Array(sig.length + len + Math.round(rate * 0.002));
   y.set(sig);
