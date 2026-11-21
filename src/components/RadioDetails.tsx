@@ -3,6 +3,7 @@ import { useApp } from '../state/store';
 import { createInputMeter, encodeWav16, FLOOR_HZ } from '../audio/diagnostics';
 import type { InputLevels } from '../audio/diagnostics';
 import { FSK } from '../audio/fsk';
+import { DECODE_HINT } from './RadioPill';
 import './RadioDetails.css';
 
 const REFRESH_MS = 200;
@@ -156,8 +157,11 @@ function Panel({ onClose }: { onClose(): void }) {
               bytes {stats.bytes} · frames {stats.frames} · headers {stats.headers} · CRC ok {stats.crcOk} · CRC fail {stats.crcFail} · aborts {stats.aborts}
               <br />
               SSTV started {stats.sstvStarted} · done {stats.sstvDone} · no VIS {stats.visTimeouts}
+              <br />
+              two-tone stretches with no frame {stats.undecodedTones}
             </p>
           )}
+          <p className="radio-details__tip"><b>Tip:</b> {DECODE_HINT}</p>
 
           <h3 className="radio-details__h">Last packets</h3>
           {log.length === 0 ? (

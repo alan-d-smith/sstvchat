@@ -118,6 +118,13 @@
   color: var(--text-2);
 }
 
+.radio-details__tip {
+  margin: 6px 0 0;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: var(--btn-neutral);
+}
+
 .radio-details__stats {
   margin: 0;
   font-variant-numeric: tabular-nums;

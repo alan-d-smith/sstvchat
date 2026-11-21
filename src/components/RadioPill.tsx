@@ -13,19 +13,30 @@ const INFO: Record<RadioState, { tone: Tone; label: string; short: string; tap?:
   error: { tone: 'off', label: 'Mic error – tap to retry', short: 'Mic error', tap: true },
 };
 
+/** Shown when the mic hears clear two-tone audio that the receiver cannot frame. */
+export const DECODE_HINT =
+  'Hearing tones but can’t decode them. On Windows laptops, turn off Settings → System → Sound → your microphone → Audio enhancements (and Dolby/Vantage noise cancellation), then reload.';
+
 /**
  * Radio status: green "Listening", red "Sending", grey when the mic is off (tap to turn it on).
  * `compact` drops the "tap to …" hint from the visible text (it stays in the accessible name).
- * A small "Radio details" link next to it opens the diagnostics panel.
+ * A small "Radio details" link next to it opens the diagnostics panel, and a dismissible tip
+ * drops below it when tones are heard but can't be decoded.
  */
 export function RadioPill({ compact = false }: { compact?: boolean }) {
-  const { toggleRadioDetails } = useApp();
+  const { toggleRadioDetails, decodeHint, dismissDecodeHint, radio } = useApp();
   return (
     <span className="radio-pill-wrap">
       <Pill compact={compact} />
       <button type="button" className="radio-pill__details" onClick={() => toggleRadioDetails()}>
         {compact ? 'Details' : 'Radio details'}
       </button>
+      {decodeHint && radio === 'listening' && (
+        <span className="radio-hint" role="status">
+          <span className="radio-hint__text">{DECODE_HINT}</span>
+          <button type="button" className="radio-hint__close" aria-label="Dismiss hint" onClick={dismissDecodeHint}>×</button>
+        </span>
+      )}
     </span>
   );
 }

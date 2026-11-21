@@ -1,7 +1,12 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
-import { createInputMeter, createRadioDiag, encodeWav16, LOG_SIZE, measure } from './diagnostics';
+import { createInputMeter, createRadioDiag, createToneWatch, encodeWav16, LOG_SIZE, measure } from './diagnostics';
 import type { AudioEngine } from './engine';
+import { createAudioTransport } from './audioTransport';
+import { encodePacket } from './packet';
+import { FSK, fskModulate } from './fsk';
+import { robot36Modulate } from './robot36';
+import { createMockTransport } from '../sim/transport';
 
 const RATE = 48000;
 const sine = (freq: number, amp: number, n = RATE / 5) =>
@@ -83,5 +88,82 @@ describe('radio diag', () => {
     for (let i = 0; i < LOG_SIZE + 3; i++) d.add({ kind: 'text', from: 'a', to: ['b'], id: String(i), decision: 'accepted' });
     expect(d.stats()).toMatchObject({ frames: 1, bytes: 12, crcOk: 0 });
     expect(d.log().map((e) => e.id)).toEqual(Array.from({ length: LOG_SIZE }, (_, i) => String(i + 3)));
+  });
+});
+
+describe('undecoded-tone watch', () => {
+  /** Half a second of quiet room either side, the signal at 0.3, light noise. */
+  const room = (x: Float32Array, seed = 1) => {
+    let a = seed;
+    const lead = RATE / 2;
+    const out = new Float32Array(x.length + RATE);
+    for (let i = 0; i < out.length; i++) {
+      a = (a * 1103515245 + 12345) >>> 0;
+      const s = i >= lead && i - lead < x.length ? 0.3 * x[i - lead] : 0;
+      out[i] = s + 0.003 * ((a / 2 ** 32) * 2 - 1);
+    }
+    return out;
+  };
+  /** Random bits on the real mark/space tones at `baud` (continuous phase). */
+  const twoTone = (baud: number, seconds: number) => {
+    const out = new Float32Array(RATE * seconds);
+    let phase = 0;
+    let bit = 1;
+    let a = 7;
+    for (let i = 0; i < out.length; i++) {
+      if (i % Math.round(RATE / baud) === 0) {
+        a = (a * 1103515245 + 12345) >>> 0;
+        bit = a >>> 31;
+      }
+      phase += (2 * Math.PI * (bit ? FSK.mark : FSK.space)) / RATE;
+      out[i] = 0.8 * Math.sin(phase);
+    }
+    return out;
+  };
+  const packet = encodePacket({ kind: 'text', from: 'alice', fromName: '', to: ['bob'], chatId: 'bob', mode: '', id: 'ab12', text: 'hello bob, are you there?' });
+
+  function watch() {
+    const mic = engineWithMic();
+    const t = createAudioTransport({ engine: mic.engine, self: () => ({ id: 'bob', name: 'bob' }), recipients: (c) => c, fallback: createMockTransport() });
+    const hits: number[] = [];
+    createToneWatch(mic.engine, () => t.diag.stats().frames, () => hits.push(t.diag.stats().frames));
+    return { ...mic, t, hits };
+  }
+
+  it('stays quiet when the receiver frames the tones', () => {
+    const w = watch();
+    w.hear(room(fskModulate(packet, RATE)));
+    expect(w.t.diag.stats().crcOk).toBe(1);
+    expect(w.hits).toEqual([]);
+  });
+
+  it('fires once per stretch of clear two-tone audio that yields no frame', () => {
+    const w = watch();
+    w.hear(room(twoTone(300, 4))); // plainly the two tones, but nothing the receiver can frame
+    expect(w.t.diag.stats().frames).toBe(0);
+    expect(w.hits).toEqual([0]);
+    w.hear(room(twoTone(300, 1))); // too short to judge
+    expect(w.hits).toEqual([0]);
+  });
+
+  it('ignores SSTV images, speech-like sound and silence', () => {
+    const w = watch();
+    const img = new ImageData(320, 240);
+    for (let i = 0; i < img.data.length; i += 4) {
+      const x = (i / 4) % 320;
+      img.data.set([x * 0.8, 128, 200 - x / 2, 255], i);
+    }
+    const gray = new ImageData(320, 240);
+    gray.data.fill(128);
+    const white = new ImageData(320, 240);
+    white.data.fill(255);
+    const light = new ImageData(320, 240); // luma ≈ 2197 Hz: right on the space tone
+    light.data.fill(240);
+    for (const im of [img, gray, white, light]) w.hear(room(robot36Modulate(im, RATE).subarray(0, RATE * 8)));
+    const voice = Float32Array.from({ length: RATE * 3 }, (_, i) => 0.4 * Math.sin(i * 0.037 + 3 * Math.sin(i * 0.0007)) * Math.abs(Math.sin(i * 0.0004)));
+    w.hear(room(voice));
+    w.hear(room(sine(FSK.mark, 0.8, RATE * 3))); // a steady test tone is not FSK
+    w.hear(new Float32Array(RATE * 2));
+    expect(w.hits).toEqual([]);
   });
 });

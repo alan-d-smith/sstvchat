@@ -103,6 +103,22 @@ describe('RadioDetails', () => {
     expect(panel).toHaveTextContent('1.0 s of mic audio at 48000 Hz');
   });
 
+  it('shows the decode hint by the pill while listening, dismissible; the panel always has the tip', () => {
+    const r = fakeRadio();
+    setApi({ decodeHint: true, dismissDecodeHint: vi.fn(), radioDetailsOpen: true, radioDiag: { engine: r.engine, diag: r.diag } });
+    const { rerender } = render(<><RadioPill /><RadioDetails /></>);
+    const hint = screen.getByText(/^Hearing tones but can’t decode them\. On Windows laptops, turn off Settings → System → Sound → your microphone → Audio enhancements/, { selector: ".radio-hint__text" });
+    expect(hint.closest('[role="status"]')).toHaveClass('radio-hint');
+    fireEvent.click(screen.getByRole('button', { name: 'Dismiss hint' }));
+    expect(api.current.dismissDecodeHint).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('dialog', { name: 'Radio details' })).toHaveTextContent('Tip: Hearing tones but can’t decode them.');
+
+    setApi({ decodeHint: false, radioDetailsOpen: true, radioDiag: { engine: r.engine, diag: r.diag } });
+    rerender(<><RadioPill /><RadioDetails /></>);
+    expect(screen.queryByRole('button', { name: 'Dismiss hint' })).not.toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Radio details' })).toHaveTextContent('Tip: Hearing tones');
+  });
+
   it('records 10 s of raw mic samples to a WAV download', async () => {
     const r = fakeRadio();
     setApi({ radioDetailsOpen: true, radioDiag: { engine: r.engine, diag: r.diag } });

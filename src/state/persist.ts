@@ -8,6 +8,9 @@ import type { Chat, Message, Person } from '../types';
 const CHATS_KEY = 'sstv.chats.v2';
 const PEOPLE_KEY = 'sstv.people';
 const HEARD_KEY = 'sstv.heard';
+const HINT_KEY = 'sstv.decodeHintDismissedAt';
+/** A dismissed "can't decode" hint stays away this long. */
+export const HINT_QUIET_MS = 24 * 60 * 60 * 1000;
 
 function read<T>(key: string): T | null {
   try {
@@ -75,4 +78,14 @@ export function loadHeard(): Record<string, number> {
 
 export function saveHeard(heard: Record<string, number>): void {
   write(HEARD_KEY, heard);
+}
+
+/** The "hearing tones but can't decode them" hint was dismissed in the last 24 h. */
+export function decodeHintDismissedRecently(now = Date.now()): boolean {
+  const at = read<number>(HINT_KEY);
+  return typeof at === 'number' && now - at < HINT_QUIET_MS;
+}
+
+export function saveDecodeHintDismissed(now = Date.now()): void {
+  write(HINT_KEY, now);
 }

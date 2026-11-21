@@ -50,6 +50,8 @@ function fakeApi(over: Partial<AppApi> = {}): AppApi {
     radioDiag: null,
     radioDetailsOpen: false,
     toggleRadioDetails: vi.fn(),
+    decodeHint: false,
+    dismissDecodeHint: vi.fn(),
     ...over,
   };
 }

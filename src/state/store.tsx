@@ -10,10 +10,11 @@ import { makePlaceholderSnap } from '../media/placeholder';
 import { createAudioEngine, hasWebAudio } from '../audio/engine';
 import type { AudioEngine, RadioState } from '../audio/engine';
 import { createAudioTransport } from '../audio/audioTransport';
+import { createToneWatch } from '../audio/diagnostics';
 import type { RadioDiag } from '../audio/diagnostics';
 import { NAME_RE, claimName, fetchUsers, normalizeName, saveAccount, savedAccount, seedFor } from './account';
 import type { Account, ClaimResult, DirectoryUser } from './account';
-import { loadChats, loadHeard, loadPeople, saveChats, saveHeard, savePeople } from './persist';
+import { decodeHintDismissedRecently, loadChats, loadHeard, loadPeople, saveChats, saveDecodeHintDismissed, saveHeard, savePeople } from './persist';
 import { clearSnapImages, loadSnapImages, newImageId, saveSnapImage } from './snapImages';
 
 export type { Account, ClaimResult } from './account';
@@ -53,6 +54,10 @@ export interface AppApi {
   radioDetailsOpen: boolean;
   /** Shows/hides the radio diagnostics panel (toggles without an argument). */
   toggleRadioDetails(open?: boolean): void;
+  /** The mic hears clear two-tone audio the receiver can't frame (OS audio processing?). */
+  decodeHint: boolean;
+  /** Hides the hint for 24 h. */
+  dismissDecodeHint(): void;
 }
 
 type RxPhase = 'queued' | 'running' | 'done' | 'cancelled';
@@ -174,6 +179,7 @@ export function AppProvider({ children, transport: given }: { children: ReactNod
   const [radio, setRadio] = useState<RadioState>('off');
   const [directory, setDirectory] = useState<DirectoryUser[]>([]);
   const [radioDetailsOpen, setRadioDetailsOpen] = useState(false);
+  const [decodeHint, setDecodeHint] = useState(false);
 
   const stateRef = useRef(state);
   stateRef.current = state;
@@ -260,6 +266,19 @@ export function AppProvider({ children, transport: given }: { children: ReactNod
   }, [engine]);
 
   const enableRadio = useCallback(() => { void engine?.start(); }, [engine]);
+
+  // Tones the receiver can't frame (e.g. Windows "Audio enhancements" eating them): say so once.
+  useEffect(() => {
+    if (!engine || !diag) return;
+    return createToneWatch(engine, () => diag.stats().frames, () => {
+      diag.count('undecodedTones');
+      if (!decodeHintDismissedRecently()) setDecodeHint(true);
+    });
+  }, [engine, diag]);
+  const dismissDecodeHint = useCallback(() => {
+    saveDecodeHintDismissed();
+    setDecodeHint(false);
+  }, []);
 
   // Browsers only open the mic from a user gesture: start on the first tap or key once someone is set.
   useEffect(() => {
@@ -643,9 +662,11 @@ export function AppProvider({ children, transport: given }: { children: ReactNod
       radioDiag: engine && diag ? { engine, diag } : null,
       radioDetailsOpen,
       toggleRadioDetails: (open) => setRadioDetailsOpen((o) => open ?? !o),
+      decodeHint,
+      dismissDecodeHint,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state, transport, startRx, startTx, closeViewer, patchChat, self, accountOpen, radio, enableRadio, claim, setAvatar, snapBuffer, addDirectChat, people, refreshDirectory, engine, diag, radioDetailsOpen]);
+  }, [state, transport, startRx, startTx, closeViewer, patchChat, self, accountOpen, radio, enableRadio, claim, setAvatar, snapBuffer, addDirectChat, people, refreshDirectory, engine, diag, radioDetailsOpen, decodeHint, dismissDecodeHint]);
 
   return <Ctx.Provider value={api}>{children}</Ctx.Provider>;
 }
