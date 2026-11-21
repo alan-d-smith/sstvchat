@@ -1,6 +1,6 @@
 import { claim } from './_accounts.js';
 import { scryptPasswords } from './_password.js';
-import { json, redisStore } from './_redis.js';
+import { json, RedisNotConfigured, redisStore } from './_redis.js';
 
 // Node.js runtime (the default for api/*.ts): scrypt and timingSafeEqual come from node:crypto.
 
@@ -19,6 +19,10 @@ export async function POST(request: Request): Promise<Response> {
     const r = await claim(redisStore(), scryptPasswords, body);
     return json(r.body, r.status);
   } catch (e) {
+    if (e instanceof RedisNotConfigured) {
+      console.error(e.message);
+      return json({ error: 'not-configured' }, 503);
+    }
     console.error('claim failed', e);
     return json({ error: 'server' }, 500);
   }
