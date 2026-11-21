@@ -157,4 +157,42 @@ describe('AppProvider', () => {
     expect(chat(r, 'roomies').messages.at(-1)!.id).toBe('r8');
     expect(r.result.current.pane).toBeNull();
   });
+
+  it('queued rx maps to the requested chat and gets a label once started', async () => {
+    const r = setup();
+    act(() => r.result.current.sendText('moe', 'busy'));
+    act(() => r.result.current.openSnap('roomies'));
+    const h = (r.result.current.pane as { handle: string }).handle;
+    expect(r.result.current.rxLabel[h]).toBe('Robot36 · queued');
+    await advance(400);
+    expect(r.result.current.rxLabel[h]).toMatch(/^Robot36 · \d+% · 0:0\d$/);
+    expect(chat(r, 'roomies').status.kind).toBe('receiving');
+    expect(chat(r, 'sophie' as string)).toBeUndefined();
+  });
+
+  it('closing viewer on a queued rx cancels it', async () => {
+    const r = setup();
+    act(() => r.result.current.sendText('moe', 'busy'));
+    act(() => r.result.current.openSnap('roomies'));
+    const h = (r.result.current.pane as { handle: string }).handle;
+    act(() => r.result.current.closePane());
+    expect(r.result.current.rxLabel[h]).toBe('Robot36 · stopped');
+  });
+
+  it('resetDemo cancels a queued rx', async () => {
+    const r = setup();
+    act(() => r.result.current.sendText('moe', 'busy'));
+    act(() => r.result.current.demoIncoming('julie', 'snap'));
+    act(() => r.result.current.resetDemo());
+    await advance(3000);
+    expect(r.result.current.chats.find((c) => c.id === 'julie')!.status).toMatchObject({ kind: 'new-snap', time: '16m' });
+    expect(Object.keys(r.result.current.rxLabel)).toHaveLength(0);
+  });
+
+  it('mobile openCamera(to) carries recipient into preview overlay', () => {
+    const r = setup(true);
+    act(() => r.result.current.openCamera('julie'));
+    act(() => r.result.current.takeSnap());
+    expect(r.result.current.overlay).toEqual({ type: 'preview', to: 'julie' });
+  });
 });

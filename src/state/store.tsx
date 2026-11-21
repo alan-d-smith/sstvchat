@@ -23,12 +23,13 @@ export interface AppApi {
   demoIncoming(from: string, kind: 'snap' | 'text'): void; resetDemo(): void;
 }
 
-type RxPhase = 'running' | 'done' | 'cancelled';
+type RxPhase = 'queued' | 'running' | 'done' | 'cancelled';
 
 interface State {
   chats: Chat[]; selectedChatId: string | null;
   pane: PaneMode; tab: MobileTab; overlay: MobileOverlay; capture: ImageData | null;
   rxLabel: Record<Handle, string>; rxPhase: Record<Handle, RxPhase>;
+  cameraTo?: string;
 }
 
 type Action =
@@ -40,7 +41,7 @@ type Action =
 
 const initial = (): State => ({
   chats: mockChats, selectedChatId: 'roomies', pane: null, tab: 'chat', overlay: null,
-  capture: null, rxLabel: {}, rxPhase: {},
+  capture: null, rxLabel: {}, rxPhase: {}, cameraTo: undefined,
 });
 
 const setStatus = (status: ChatStatus) => (c: Chat): Chat => ({ ...c, status });
@@ -139,7 +140,7 @@ export function AppProvider({ children, transport: given }: { children: ReactNod
         if (m) each(m, setStatus({ kind: 'failed', medium: m.kind === 'snap' ? 'snap' : 'chat' }));
       }),
       transport.on('rx:start', (h, from, kind) => {
-        const chatId = pendingRx.current ?? findChat(from)?.id;
+        const chatId = rxMeta.current.get(h)?.chatId ?? pendingRx.current ?? findChat(from)?.id;
         if (!chatId) return;
         const prev = stateRef.current.chats.find((c) => c.id === chatId)!.status;
         const meta: RxMeta = { chatId, kind, start: Date.now(), prev };
@@ -203,7 +204,15 @@ export function AppProvider({ children, transport: given }: { children: ReactNod
 
   const startRx = useCallback((chatId: string, from: string, kind: 'snap' | 'text', payload: ImageData | string, startAt?: number) => {
     pendingRx.current = chatId;
-    try { return transport.simulateIncoming(from, kind, payload, startAt); } finally { pendingRx.current = null; }
+    try {
+      const h = transport.simulateIncoming(from, kind, payload, startAt);
+      if (!rxMeta.current.has(h)) {
+        const prev = stateRef.current.chats.find((c) => c.id === chatId)!.status;
+        rxMeta.current.set(h, { chatId, kind, start: Date.now(), prev });
+        dispatch({ type: 'rxLabel', h, label: `${MODE} · queued`, phase: 'queued' });
+      }
+      return h;
+    } finally { pendingRx.current = null; }
   }, [transport]);
 
   const startTx = useCallback((meta: TxMeta, run: () => Handle) => {
@@ -216,7 +225,8 @@ export function AppProvider({ children, transport: given }: { children: ReactNod
   }, []);
 
   const closeViewer = useCallback((v: { chatId: string; handle: Handle }) => {
-    if (stateRef.current.rxPhase[v.handle] === 'running') transport.cancel(v.handle);
+    const phase = stateRef.current.rxPhase[v.handle];
+    if (phase === 'running' || phase === 'queued') transport.cancel(v.handle);
     dispatch({ type: 'viewerClosed', chatId: v.chatId, handle: v.handle });
   }, [transport]);
 
@@ -238,7 +248,7 @@ export function AppProvider({ children, transport: given }: { children: ReactNod
         dispatch({ type: 'patch', patch: { overlay: o } });
       },
       openCamera: (to) => {
-        if (isMobileNow()) dispatch({ type: 'patch', patch: { tab: 'camera' } });
+        if (isMobileNow()) dispatch({ type: 'patch', patch: { tab: 'camera', cameraTo: to } });
         else dispatch({ type: 'patch', patch: { pane: { mode: 'camera', to } } });
       },
       closePane: () => {
@@ -250,7 +260,7 @@ export function AppProvider({ children, transport: given }: { children: ReactNod
         const { pane, overlay } = stateRef.current;
         const capture = makePlaceholderSnap();
         if (isMobileNow()) {
-          const to = overlay && 'to' in overlay ? overlay.to : undefined;
+          const to = (overlay && 'to' in overlay ? overlay.to : undefined) ?? stateRef.current.cameraTo;
           dispatch({ type: 'patch', patch: { capture, overlay: { type: 'preview', to } } });
         } else {
           const to = pane && 'to' in pane ? pane.to : undefined;
@@ -259,7 +269,7 @@ export function AppProvider({ children, transport: given }: { children: ReactNod
       },
       openSnap: (chatId) => {
         for (const [h, m] of rxMeta.current) {
-          if (m.chatId === chatId && m.kind === 'snap' && stateRef.current.rxPhase[h] === 'running') {
+          if (m.chatId === chatId && m.kind === 'snap' && ['running', 'queued'].includes(stateRef.current.rxPhase[h])) {
             openViewer(chatId, h);
             return;
           }
@@ -281,7 +291,7 @@ export function AppProvider({ children, transport: given }: { children: ReactNod
         chatIds.forEach((id) => patchChat(id, (c) => ({
           ...c, messages: [...c.messages, { id: `tx${++seq}`, senderId: ME, type: 'snap', opened: false }],
         })));
-        dispatch({ type: 'patch', patch: { capture: null, pane: null, overlay: null, tab: 'chat' } });
+        dispatch({ type: 'patch', patch: { capture: null, pane: null, overlay: null, tab: 'chat', cameraTo: undefined } });
         startTx({ kind: 'snap', chatIds: [...chatIds] }, () => transport.sendSnap(chatIds, image));
       },
       cancel: (h) => transport.cancel(h),
