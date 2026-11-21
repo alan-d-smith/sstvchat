@@ -6,7 +6,7 @@
 
 .cam {
   --cam-fg: #fff;
-  --avatar-bg: #141416;
+  --avatar-bg: #0c0c0d;
 
   position: relative;
   flex: 1;
@@ -19,6 +19,37 @@
   font-family: var(--font);
   -webkit-tap-highlight-color: transparent;
   user-select: none;
+  container-type: size;
+}
+
+/* ---------- viewfinder: the webcam in a 3:4 frame fitted to the width, centred ---------- */
+
+.cam__view {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: min(100cqw, 75cqh);
+  aspect-ratio: 3 / 4;
+  overflow: hidden;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.cam__video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity 200ms ease;
+}
+
+.cam__video.is-ready {
+  opacity: 1;
+}
+
+.cam__video.is-mirrored {
+  transform: scaleX(-1);
 }
 
 .cam button {
@@ -55,6 +86,8 @@
   width: var(--i, 26px);
   height: var(--i, 26px);
   stroke-width: var(--sw, 2px);
+  /* Invisible on black; keeps the glyphs readable over a bright camera image. */
+  filter: drop-shadow(0 0.5px 1.5px rgba(0, 0, 0, 0.4));
 }
 
 .cam__btn--search { --i: 26.5px; --sw: 2.15px; }
@@ -62,11 +95,17 @@
 .cam__btn--add { --i: 24px; --sw: 2.2px; }
 .cam__btn--flip { --i: 27px; --sw: 2.05px; }
 .cam__btn--flash { --i: 25.5px; --sw: 2.1px; }
-.cam__btn--music { --i: 24.5px; --sw: 2.3px; }
+.cam__btn--music { --i: 26px; --sw: 2.2px; }
 .cam__btn--record { --i: 26.5px; --sw: 2.15px; }
-.cam__btn--memories { --i: 34px; --sw: 1.75px; }
-.cam__btn--games { --i: 25.5px; --sw: 2.1px; }
+.cam__btn--memories { --i: 38px; --sw: 1.55px; }
+.cam__btn--games { --i: 25.5px; --sw: 1.9px; }
 .cam__btn--explore { --i: 26.5px; --sw: 2.1px; }
+
+/* The shared flip glyph runs left/right; the reference camera shows it turned a quarter. */
+.cam__btn--flip .icon { transform: rotate(90deg); }
+
+/* The reference controller is a chunkier, taller pad than the shared glyph. */
+.cam__btn--games .icon { transform: scaleY(1.25); }
 
 /* ---------- top bar: centres 25px below the safe area ---------- */
 
@@ -92,7 +131,7 @@
   height: 44px;
 }
 
-.cam__avatar {
+.cam .cam__avatar {
   display: block;
   width: 40px;
   height: 40px;
@@ -141,7 +180,7 @@
   left: 8px;
   width: 32px;
   height: 26px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 0.75px solid rgba(255, 255, 255, 0.2);
   border-radius: 50%;
   content: '';
 }
@@ -150,14 +189,14 @@
 
 .cam__zoom {
   position: absolute;
-  bottom: 190px;
+  bottom: 189px;
   left: 50%;
   z-index: 1;
   display: flex;
   align-items: center;
   height: 32px;
   padding: 0;
-  border: 1px solid #2a2a2c;
+  border: 0.75px solid #2e2e30;
   border-radius: 16px;
   background: #101011;
   transform: translateX(-50%);
@@ -169,15 +208,14 @@
   width: 29.33px;
   height: 29.33px;
   border-radius: 50%;
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 700;
-  letter-spacing: 0.1px;
 }
 
 .cam .cam__zoom-opt.is-selected {
   background: #282829;
   color: var(--yellow);
-  font-size: 11.5px;
+  font-size: 10.5px;
 }
 
 /* ---------- capture row: memories · shutter · lens carousel ---------- */
@@ -185,7 +223,7 @@
 .cam__capture {
   position: absolute;
   right: 0;
-  bottom: 85px;
+  bottom: 84px;
   left: 0;
   z-index: 1;
   height: 87px;
@@ -203,6 +241,7 @@
 .cam .cam__shutter {
   border: 7.6px solid #fff;
   border-radius: 50%;
+  box-shadow: 0 0 3px rgba(0, 0, 0, 0.25), inset 0 0 3px rgba(0, 0, 0, 0.25);
   transition: transform 120ms ease;
 }
 
@@ -221,37 +260,13 @@
 
 .cam__lenses {
   position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  left: calc(50% + 53px);
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding-right: 10px;
-  overflow-x: auto;
-  overscroll-behavior-x: contain;
-  scrollbar-width: none;
-  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 6px);
-  mask-image: linear-gradient(to right, transparent 0, #000 6px);
+  inset: 0;
 }
 
-.cam__lenses::-webkit-scrollbar {
-  display: none;
-}
-
-.cam .cam__lens {
-  flex: none;
-  width: 50px;
-  height: 50px;
-  overflow: hidden;
-  border-radius: 50%;
-}
-
-.cam__lens svg {
-  display: block;
-  width: 100%;
-  height: 100%;
+/* Filters are for the camera; the gallery button and shutter stay on top of the lens strip. */
+.cam__btn--memories,
+.cam__shutter {
+  z-index: 1;
 }
 
 /* ---------- lens categories: centred selected pill, faded edges, icons either side ---------- */
@@ -259,7 +274,7 @@
 .cam__lensbar {
   position: absolute;
   right: 0;
-  bottom: 43px;
+  bottom: 42px;
   left: 0;
   z-index: 1;
   height: 36px;
@@ -292,13 +307,14 @@
 .cam .cam__tab {
   flex: none;
   height: 36px;
-  padding: 0 12.5px;
+  padding: 0 11px 2px;
   border: 1px solid transparent;
   border-radius: 18px;
   color: rgba(255, 255, 255, 0.75);
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
-  line-height: 34px;
+  line-height: 32px;
+  letter-spacing: -0.45px;
   white-space: nowrap;
 }
 

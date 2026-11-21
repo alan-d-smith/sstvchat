@@ -2,7 +2,7 @@ import type { ChatStatus, Medium } from '../types';
 import { Icon, type IconName } from './Icon';
 import './StatusLine.css';
 
-const MEDIUM_COLOR: Record<Medium, string> = { snap: 'var(--purple)', chat: 'var(--blue)' };
+const MEDIUM_COLOR: Record<Medium, string> = { snap: 'var(--red)', chat: 'var(--blue)' };
 const GREY = 'var(--text-2)';
 
 interface Look {

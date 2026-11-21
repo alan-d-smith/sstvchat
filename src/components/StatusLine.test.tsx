@@ -28,9 +28,9 @@ describe('StatusLine', () => {
     expect(container).toHaveTextContent(/^Queued$/);
   });
 
-  it('colours the word purple for a new snap', () => {
+  it('colours the word red for a new snap', () => {
     renderStatus({ kind: 'new-snap', medium: 'snap', time: '16m' });
-    expect(screen.getByText('New Snap')).toHaveStyle({ color: 'var(--purple)' });
+    expect(screen.getByText('New Snap')).toHaveStyle({ color: 'var(--red)' });
   });
 
   it('colours the word blue for a new chat', () => {
@@ -52,6 +52,6 @@ describe('StatusLine', () => {
   it('keeps settled words grey and colours only the icon by medium', () => {
     const { container } = renderStatus({ kind: 'opened', medium: 'snap', time: '1h' });
     expect(screen.getByText('Opened')).toHaveStyle({ color: 'var(--text-2)' });
-    expect(container.querySelector('.status-line__icon')).toHaveStyle({ color: 'var(--purple)' });
+    expect(container.querySelector('.status-line__icon')).toHaveStyle({ color: 'var(--red)' });
   });
 });

@@ -4,7 +4,7 @@ import { Avatar } from '../components/Avatar';
 import { Icon } from '../components/Icon';
 import { StatusLine } from '../components/StatusLine';
 
-const MEDIUM_COLOR: Record<Medium, string> = { snap: 'var(--purple)', chat: 'var(--blue)' };
+const MEDIUM_COLOR: Record<Medium, string> = { snap: 'var(--red)', chat: 'var(--blue)' };
 
 /** The faces to show for a chat: every member except me (group avatars use the first 2–3). */
 function chatFaces(chat: Chat, people: Record<string, Person>): Person[] {

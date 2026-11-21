@@ -1,0 +1,134 @@
+/*
+ * Lens row. The host sizes and places .lens-carousel (its horizontal centre = the shutter's);
+ * the track fills it and snaps each circle to that centre.
+ */
+
+.lens-carousel {
+  position: relative;
+}
+
+.lens-carousel__track {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--lens-gap);
+  height: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  touch-action: pan-x;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.lens-carousel__track::-webkit-scrollbar {
+  display: none;
+}
+
+.lens-carousel__track.is-dragging {
+  scroll-snap-type: none;
+  cursor: grabbing;
+}
+
+/* End spacers, so the first and the last slot can both reach the centre. */
+.lens-carousel__track::before,
+.lens-carousel__track::after {
+  flex: none;
+  height: 1px;
+  content: '';
+}
+
+.lens-carousel__track::before { width: calc(50% - var(--lens-rest) / 2 - var(--lens-gap)); }
+.lens-carousel__track::after { width: calc(50% - var(--lens-size) / 2 - var(--lens-gap)); }
+
+/* Circles that slide left of the shutter disappear under its ring. */
+.lens-carousel.is-clipped .lens-carousel__track {
+  -webkit-mask-image: linear-gradient(to right, transparent calc(50% - var(--lens-clip)), #000 calc(50% - var(--lens-clip) + 1px));
+  mask-image: linear-gradient(to right, transparent calc(50% - var(--lens-clip)), #000 calc(50% - var(--lens-clip) + 1px));
+}
+
+.lens-carousel__item {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: var(--lens-size);
+  height: var(--lens-size);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  cursor: pointer;
+  scroll-snap-align: center;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.lens-carousel__item:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+
+/* "Normal": an empty slot the width of the shutter; a faint ring marks it when it is off-centre. */
+.lens-carousel__item--none {
+  width: var(--lens-rest);
+  border-radius: 0;
+}
+
+.lens-carousel__item--none::before {
+  box-sizing: border-box;
+  width: var(--lens-size);
+  height: var(--lens-size);
+  border: 1.5px solid rgba(255, 255, 255, 0.6);
+  border-radius: 50%;
+  content: '';
+  transition: opacity 150ms ease;
+}
+
+.lens-carousel__item--none.is-active::before {
+  opacity: 0;
+}
+
+.lens-carousel__thumb {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border-radius: 50%;
+  background: linear-gradient(180deg, #4fb8ff 0%, #9fd8ff 48%, #ffd9a8 100%);
+}
+
+.lens-carousel__thumb svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.lens-carousel__label {
+  position: absolute;
+  left: 50%;
+  color: #fff;
+  font-family: var(--font);
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55);
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, 4px);
+  transition: opacity 220ms ease, transform 220ms ease;
+}
+
+.lens-carousel__label.is-shown {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lens-carousel__label,
+  .lens-carousel__item--none::before {
+    transition: none;
+  }
+}

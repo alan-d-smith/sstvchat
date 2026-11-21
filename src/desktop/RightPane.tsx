@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import type { ChangeEvent } from 'react';
 import { useApp } from '../state/store';
 import type { PaneMode } from '../state/store';
 import { MODE } from '../sim/transport';
@@ -8,6 +9,9 @@ import { Avatar } from '../components/Avatar';
 import { Icon } from '../components/Icon';
 import { SnapCanvas } from '../components/SnapCanvas';
 import { SendToList } from '../components/SendToList';
+import { LensCarousel } from '../components/LensCarousel';
+import { filterCss, grabSnap, imageFileToSnap, useCamera } from '../media/camera';
+import type { SnapFilter } from '../media/camera';
 import './RightPane.css';
 
 type OpenPane = Exclude<PaneMode, null>;
@@ -90,22 +94,7 @@ function Pane({ pane }: { pane: OpenPane }) {
           )}
         </header>
 
-        {mode === 'camera' && (
-          <div className="rp-card rp-card--dark">
-            <div className="rp-tools">
-              <button type="button" className="rp-tool" aria-label="Flip camera">
-                <Icon name="flip" size={24} />
-              </button>
-              <button type="button" className="rp-tool" aria-label="Flash off">
-                <Icon name="flash-off" size={24} />
-              </button>
-              <button type="button" className="rp-tool rp-tool--ring" aria-label="More tools">
-                <Icon name="chevron-down" size={20} />
-              </button>
-            </div>
-            <button type="button" className="rp-shutter" aria-label="Take snap" onClick={() => app.takeSnap()} />
-          </div>
-        )}
+        {mode === 'camera' && <CameraCard onSnap={app.takeSnap} />}
 
         {mode === 'preview' && (
           <div className="rp-card rp-card--dark">
@@ -150,6 +139,59 @@ function Pane({ pane }: { pane: OpenPane }) {
         )}
       </div>
     </aside>
+  );
+}
+
+/**
+ * Live webcam in the 3:4 card (the exact frame the shutter captures) with the lens filters.
+ * No camera → black card, and the shutter sends a placeholder snap. The gallery button sends a
+ * photo from disk through the same filter.
+ */
+function CameraCard({ onSnap }: { onSnap(image?: ImageData): void }) {
+  const cam = useCamera(true);
+  const [filter, setFilter] = useState<SnapFilter>('none');
+  const galleryRef = useRef<HTMLInputElement>(null);
+
+  const onGalleryFile = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (file) imageFileToSnap(file, filter).then(onSnap, () => {});
+  };
+
+  return (
+    <div className="rp-card rp-card--dark">
+      <video
+        ref={cam.videoRef}
+        className={`rp-video${cam.ready ? ' is-ready' : ''}${cam.mirrored ? ' is-mirrored' : ''}`}
+        style={{ filter: filterCss(filter) }}
+        autoPlay
+        muted
+        playsInline
+        aria-hidden="true"
+      />
+      <div className="rp-tools">
+        <button type="button" className="rp-tool" aria-label="Flip camera" onClick={cam.flip}>
+          <Icon name="flip" size={24} />
+        </button>
+        <button type="button" className="rp-tool" aria-label="Flash off">
+          <Icon name="flash-off" size={24} />
+        </button>
+        <button type="button" className="rp-tool rp-tool--ring" aria-label="More tools">
+          <Icon name="chevron-down" size={20} />
+        </button>
+      </div>
+      <LensCarousel value={filter} onChange={setFilter} size={44} gap={10} restSize={64} labelOffset={84} className="rp-lenses" />
+      <button
+        type="button"
+        className="rp-tool rp-gallery"
+        aria-label="Send a photo from your gallery"
+        onClick={() => galleryRef.current?.click()}
+      >
+        <Icon name="memories" size={28} />
+      </button>
+      <input ref={galleryRef} type="file" accept="image/*" hidden data-testid="gallery-input" onChange={onGalleryFile} />
+      <button type="button" className="rp-shutter" aria-label="Take snap" onClick={() => onSnap(grabSnap(cam, filter))} />
+    </div>
   );
 }
 

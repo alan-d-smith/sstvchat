@@ -154,11 +154,11 @@
 .snap-tile .icon {
   display: block;
   flex: none;
-  color: var(--purple);
+  color: var(--red);
 }
 
 .snap-tile.is-new {
-  color: var(--purple);
+  color: var(--red);
   cursor: pointer;
 }
 
@@ -167,7 +167,7 @@
 }
 
 .snap-tile.is-new:focus-visible {
-  outline: 2px solid var(--purple);
+  outline: 2px solid var(--red);
   outline-offset: 1px;
 }
 
