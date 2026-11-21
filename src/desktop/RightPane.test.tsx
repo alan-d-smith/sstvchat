@@ -1,10 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import { render, screen, fireEvent, act, within } from '@testing-library/react';
 import { AppProvider, useApp } from '../state/store';
 import type { AppApi } from '../state/store';
 import { createMockTransport } from '../sim/transport';
 import { RightPane } from './RightPane';
 import { fixtures } from '../test/fixtures';
+import { FILTERS } from '../media/filters';
 
 vi.mock('../media/placeholder', () => ({
   makePlaceholderSnap: () => new ImageData(240, 320),
@@ -59,6 +60,16 @@ describe('RightPane', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Send' }));
     expect(api.pane).toBeNull();
     expect(api.chats.find((c) => c.id === 'julie')!.status.kind).toBe('transmitting');
+  });
+
+  it('camera card offers every lens filter, with the viewfinder canvas following the choice', () => {
+    const { container } = setup();
+    act(() => api.openCamera('julie'));
+    const lenses = screen.getByRole('radiogroup', { name: 'Filters' });
+    expect(within(lenses).getAllByRole('radio').map((r) => r.getAttribute('aria-label'))).toEqual(FILTERS.map((f) => f.label));
+    fireEvent.click(screen.getByRole('radio', { name: 'Halftone' }));
+    expect(screen.getByRole('radio', { name: 'Halftone' })).toBeChecked();
+    expect(container.querySelector('canvas.viewfinder__canvas')).toHaveAttribute('data-filter', 'halftone');
   });
 
   it('send-to back button returns to the preview', () => {

@@ -1,0 +1,44 @@
+/* The camera picture: the filtered snap canvas over the (hidden) source video, filling a 3:4 parent. */
+
+.viewfinder {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.viewfinder__video,
+.viewfinder__canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  transition: opacity 200ms ease;
+}
+
+.viewfinder__video {
+  object-fit: cover;
+}
+
+.viewfinder__video.is-mirrored {
+  transform: scaleX(-1);
+}
+
+.viewfinder__video.is-shown,
+.viewfinder__canvas.is-shown {
+  opacity: 1;
+}
+
+/* Blocky filters keep their hard pixel edges when scaled up. */
+.viewfinder__canvas.is-crisp {
+  image-rendering: pixelated;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .viewfinder__video,
+  .viewfinder__canvas {
+    transition: none;
+  }
+}

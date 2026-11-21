@@ -90,19 +90,15 @@
   opacity: 0;
 }
 
+/* The filter's swatch (an inline background), with a fine rim so dark swatches read on black. */
 .lens-carousel__thumb {
   display: block;
   width: 100%;
   height: 100%;
   overflow: hidden;
   border-radius: 50%;
-  background: linear-gradient(180deg, #4fb8ff 0%, #9fd8ff 48%, #ffd9a8 100%);
-}
-
-.lens-carousel__thumb svg {
-  display: block;
-  width: 100%;
-  height: 100%;
+  background: #333;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.28), 0 1px 4px rgba(0, 0, 0, 0.35);
 }
 
 .lens-carousel__label {

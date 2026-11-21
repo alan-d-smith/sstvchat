@@ -1,26 +1,34 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, render } from '@testing-library/react';
-import { applyFilterPixels, captureSnap, filterCss, imageFileToSnap, portraitCrop, useCamera } from './camera';
+import { captureSnap, filterCss, imageFileToSnap, portraitCrop, snapTime, useCamera } from './camera';
 import type { CameraState } from './camera';
+import { getFilter } from './filters';
+import type { SnapFilter } from './filters';
 import { saveDeviceId } from '../state/devices';
 
-function fakeCtx(withFilter = true) {
+/** A 240×320 frame whose first pixel is pure red. */
+function redFrame() {
+  const img = new ImageData(240, 320);
+  img.data.set([255, 0, 0, 255]);
+  return img;
+}
+
+function fakeCtx() {
   const ctx = {
     drawImage: vi.fn(),
-    translate: vi.fn(),
-    scale: vi.fn(),
-    getImageData: vi.fn(() => {
-      const img = new ImageData(240, 320);
-      img.data.set([255, 0, 0, 255]);
-      return img;
-    }),
-  } as Record<string, unknown>;
-  if (withFilter) ctx.filter = 'none';
-  vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(ctx as never);
-  return ctx as {
-    drawImage: ReturnType<typeof vi.fn>; translate: ReturnType<typeof vi.fn>; scale: ReturnType<typeof vi.fn>;
-    filter?: string;
+    setTransform: vi.fn(),
+    putImageData: vi.fn(),
+    getImageData: vi.fn(redFrame),
   };
+  vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(ctx as never);
+  return ctx;
+}
+
+/** The first pixel of a red frame through `filter` at time `t`. */
+function expected(filter: SnapFilter, t = 0) {
+  const out = new ImageData(240, 320);
+  getFilter(filter).apply(redFrame(), out, t);
+  return Array.from(out.data.slice(0, 4));
 }
 
 const video = (w: number, h: number) => ({ videoWidth: w, videoHeight: h }) as HTMLVideoElement;
@@ -31,10 +39,11 @@ afterEach(() => {
 });
 
 describe('filters and cropping', () => {
-  it('describes each filter as CSS', () => {
+  it('gives the CSS equivalent of a filter for the plain-video fallback', () => {
     expect(filterCss('none')).toBe('none');
     expect(filterCss('mono')).toBe('grayscale(1) contrast(1.15)');
     expect(filterCss('warm')).toBe('sepia(0.5) saturate(1.25) brightness(1.04)');
+    expect(filterCss('thermal')).toBe('none');
   });
 
   it('centre-crops landscape and portrait frames to 3:4 portrait', () => {
@@ -42,41 +51,49 @@ describe('filters and cropping', () => {
     expect(portraitCrop(720, 1280)).toEqual({ sx: 0, sy: 160, sw: 720, sh: 960 });
   });
 
-  it('applies mono in software as an even grey', () => {
-    const img = new ImageData(1, 1);
-    img.data.set([255, 0, 0, 255]);
-    applyFilterPixels(img, 'mono');
-    const [r, g, b, a] = img.data;
-    expect(r).toBe(g);
-    expect(g).toBe(b);
-    expect(r).toBeGreaterThan(35);
-    expect(r).toBeLessThan(50);
-    expect(a).toBe(255);
+  it('holds animated filters still for prefers-reduced-motion', () => {
+    expect(snapTime(true)).toBe(0);
+    expect(snapTime(false)).toBeGreaterThan(0);
+    const saved = window.matchMedia;
+    window.matchMedia = vi.fn().mockReturnValue({ matches: true }) as unknown as typeof window.matchMedia;
+    try {
+      expect(snapTime()).toBe(0);
+      expect(window.matchMedia).toHaveBeenCalledWith('(prefers-reduced-motion: reduce)');
+    } finally {
+      window.matchMedia = saved;
+    }
   });
 });
 
 describe('captureSnap', () => {
-  it('draws the centred 3:4 crop through the filter', () => {
+  it('draws the centred 3:4 crop and runs the selected filter over it', () => {
     const ctx = fakeCtx();
     const v = video(1280, 720);
     const img = captureSnap(v, 'mono');
-    expect(ctx.filter).toBe('grayscale(1) contrast(1.15)');
     expect(ctx.drawImage).toHaveBeenCalledWith(v, 370, 0, 540, 720, 0, 0, 240, 320);
-    expect(ctx.translate).not.toHaveBeenCalled();
+    expect(ctx.setTransform).toHaveBeenCalledWith(1, 0, 0, 1, 0, 0);
     expect([img.width, img.height]).toEqual([240, 320]);
+    const [r, g, b] = img.data;
+    expect(r).toBe(g);
+    expect(g).toBe(b);
+    expect(Array.from(img.data.slice(0, 4))).toEqual(expected('mono'));
+  });
+
+  it('returns the plain frame for Normal', () => {
+    fakeCtx();
+    expect(Array.from(captureSnap(video(640, 480), 'none').data.slice(0, 4))).toEqual([255, 0, 0, 255]);
+  });
+
+  it('runs animated filters at the given time', () => {
+    fakeCtx();
+    const img = captureSnap(video(640, 480), 'glitch', { t: 2 });
+    expect(Array.from(img.data.slice(0, 4))).toEqual(expected('glitch', 2));
   });
 
   it('mirrors for the front camera', () => {
     const ctx = fakeCtx();
     captureSnap(video(640, 480), 'none', { mirror: true });
-    expect(ctx.translate).toHaveBeenCalledWith(240, 0);
-    expect(ctx.scale).toHaveBeenCalledWith(-1, 1);
-  });
-
-  it('filters the pixels itself when the context has no filter support', () => {
-    fakeCtx(false);
-    const img = captureSnap(video(640, 480), 'mono');
-    expect(img.data[0]).toBe(img.data[1]);
+    expect(ctx.setTransform).toHaveBeenCalledWith(-1, 0, 0, 1, 240, 0);
   });
 
   it('throws while the video has no frame', () => {
@@ -91,10 +108,17 @@ describe('imageFileToSnap', () => {
     const bitmap = { width: 600, height: 600, close: vi.fn() };
     vi.stubGlobal('createImageBitmap', vi.fn().mockResolvedValue(bitmap));
     const img = await imageFileToSnap(new Blob(['x'], { type: 'image/png' }), 'warm');
-    expect(ctx.filter).toBe('sepia(0.5) saturate(1.25) brightness(1.04)');
     expect(ctx.drawImage).toHaveBeenCalledWith(bitmap, 75, 0, 450, 600, 0, 0, 240, 320);
     expect(bitmap.close).toHaveBeenCalled();
     expect([img.width, img.height]).toEqual([240, 320]);
+    expect(Array.from(img.data.slice(0, 4))).toEqual(expected('warm'));
+  });
+
+  it('applies the new pixel filters too', async () => {
+    fakeCtx();
+    vi.stubGlobal('createImageBitmap', vi.fn().mockResolvedValue({ width: 300, height: 400, close: vi.fn() }));
+    const img = await imageFileToSnap(new Blob(['x'], { type: 'image/png' }), 'duotone', 0);
+    expect(Array.from(img.data.slice(0, 4))).toEqual(expected('duotone'));
   });
 });
 

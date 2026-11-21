@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { CSSProperties, KeyboardEvent, PointerEvent } from 'react';
-import { SNAP_FILTERS, filterCss } from '../media/camera';
-import type { SnapFilter } from '../media/camera';
+import { FILTERS } from '../media/filters';
+import type { SnapFilter } from '../media/filters';
 import './LensCarousel.css';
 
 export interface LensCarouselProps {
@@ -23,30 +23,11 @@ export interface LensCarouselProps {
   className?: string;
 }
 
-/** Original thumbnail scene; each lens shows it through its own filter. */
-function LensScene() {
-  return (
-    <svg viewBox="0 0 50 50" aria-hidden="true" focusable="false">
-      <circle cx="32" cy="19" r="7.5" fill="#fff1b8" />
-      <path d="M0 32c7-5 14-6 22-3s17 3 28-3v24H0z" fill="#46b985" />
-      <path d="M0 39c9-4 18-4 27 0s16 3 23 0v11H0z" fill="#1d7a5f" />
-      <path
-        d="M14 31.5 17.5 15 21 31.5M15.2 26h4.6M11.5 13.5a8 8 0 0 1 12 0M13.6 16a5 5 0 0 1 7.8 0"
-        fill="none"
-        stroke="#22304a"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-const IDS = SNAP_FILTERS.map((f) => f.id);
+const IDS = FILTERS.map((f) => f.id);
 
 /**
- * Snapchat-style lens row: circles in a scroll-snapping strip whose centre sits under the
- * shutter. The circle under the shutter is the active filter — swipe (or mouse-drag) the strip
+ * Snapchat-style lens row: one circle per snap filter (its swatch) in a scroll-snapping strip
+ * whose centre sits under the shutter. The circle under the shutter is the active filter — swipe (or mouse-drag) the strip
  * to change it, or tap a circle to bring it under the shutter; arrow keys step through them.
  * The first slot ("Normal") is empty, so the shutter looks bare when no filter is on. The new
  * filter's name flashes above the strip on change.
@@ -92,7 +73,7 @@ export function LensCarousel({
   useEffect(() => {
     if (shownFor.current === value) return;
     shownFor.current = value;
-    setLabel({ text: SNAP_FILTERS.find((f) => f.id === value)?.name ?? value, shown: true });
+    setLabel({ text: FILTERS.find((f) => f.id === value)?.label ?? value, shown: true });
     const t = window.setTimeout(() => setLabel((l) => ({ ...l, shown: false })), 1100);
     return () => window.clearTimeout(t);
   }, [value]);
@@ -205,23 +186,19 @@ export function LensCarousel({
         onClickCapture={onClickCapture}
         onKeyDown={onKeyDown}
       >
-        {SNAP_FILTERS.map((f) => (
+        {FILTERS.map((f) => (
           <button
             key={f.id}
             type="button"
             role="radio"
             aria-checked={f.id === value}
-            aria-label={f.name}
+            aria-label={f.label}
             tabIndex={f.id === value ? 0 : -1}
             data-filter={f.id}
             className={`lens-carousel__item lens-carousel__item--${f.id}${f.id === value ? ' is-active' : ''}`}
             onClick={() => pick(f.id)}
           >
-            {f.id !== 'none' && (
-              <span className="lens-carousel__thumb" style={{ filter: filterCss(f.id) }}>
-                <LensScene />
-              </span>
-            )}
+            {f.id !== 'none' && <span className="lens-carousel__thumb" style={{ background: f.swatch }} />}
           </button>
         ))}
       </div>

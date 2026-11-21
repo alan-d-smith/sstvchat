@@ -4,6 +4,7 @@ import { AppProvider, useApp } from '../state/store';
 import { CameraScreen } from './CameraScreen';
 import { PreviewScreen } from './PreviewScreen';
 import { fixtures } from '../test/fixtures';
+import { getFilter } from '../media/filters';
 
 vi.mock('../media/placeholder', () => ({
   makePlaceholderSnap: () => new ImageData(240, 320),
@@ -27,7 +28,12 @@ const overlay = () => JSON.parse(screen.getByTestId('overlay').textContent ?? 'n
 describe('CameraScreen and PreviewScreen (mobile)', () => {
   const putImageData = vi.fn();
   const drawImage = vi.fn();
-  const shot = new ImageData(240, 320);
+  /** Camera frames: the first pixel is pure red. */
+  const shot = () => {
+    const img = new ImageData(240, 320);
+    img.data.set([255, 0, 0, 255]);
+    return img;
+  };
 
   beforeEach(() => {
     window.matchMedia = vi.fn().mockImplementation((q: string) => ({
@@ -37,7 +43,7 @@ describe('CameraScreen and PreviewScreen (mobile)', () => {
       removeEventListener: () => {},
     })) as unknown as typeof window.matchMedia;
     vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
-      putImageData, drawImage, filter: 'none', translate: () => {}, scale: () => {}, getImageData: () => shot,
+      putImageData, drawImage, setTransform: () => {}, getImageData: shot,
     } as unknown as CanvasRenderingContext2D);
     vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined);
     putImageData.mockClear();
@@ -105,12 +111,24 @@ describe('CameraScreen and PreviewScreen (mobile)', () => {
       video.dispatchEvent(new Event('loadeddata'));
     });
 
+    // The viewfinder is the filtered canvas, not the raw video.
+    fireEvent.click(screen.getByRole('radio', { name: 'Thermal' }));
+    const canvas = container.querySelector('canvas.viewfinder__canvas')!;
+    expect(canvas).toHaveAttribute('data-filter', 'thermal');
+    expect(video.style.filter).toBe('');
+
     fireEvent.click(screen.getByRole('radio', { name: 'Mono' }));
-    expect(video.style.filter).toBe('grayscale(1) contrast(1.15)');
+    expect(canvas).toHaveAttribute('data-filter', 'mono');
 
     fireEvent.click(screen.getByRole('button', { name: 'Take snap' }));
     expect(drawImage).toHaveBeenCalledWith(video, 140, 0, 360, 480, 0, 0, 240, 320);
     expect(overlay()).toEqual({ type: 'preview' });
+    // The preview shows the snap through Mono: the red pixel came out grey.
+    const snap = putImageData.mock.lastCall![0] as ImageData;
+    expect(snap.data[0]).toBe(snap.data[1]);
+    expect(snap.data[1]).toBe(snap.data[2]);
+    expect(snap.data[0]).toBeGreaterThan(35);
+    expect(snap.data[0]).toBeLessThan(50);
     expect(track.stop).toHaveBeenCalled();
   });
 
@@ -128,5 +146,20 @@ describe('CameraScreen and PreviewScreen (mobile)', () => {
     });
     expect(drawImage).toHaveBeenCalledWith(bitmap, 0, 0, 300, 400, 0, 0, 240, 320);
     expect(overlay()).toEqual({ type: 'preview' });
+  });
+
+  it('sends a gallery photo through the selected filter', async () => {
+    vi.stubGlobal('createImageBitmap', vi.fn().mockResolvedValue({ width: 300, height: 400, close: vi.fn() }));
+    render(<AppProvider {...fixtures()}><Harness /></AppProvider>);
+    fireEvent.click(screen.getByRole('radio', { name: 'Duotone' }));
+    const file = new File(['x'], 'beach.jpg', { type: 'image/jpeg' });
+    await act(async () => {
+      fireEvent.change(screen.getByTestId('gallery-input'), { target: { files: [file] } });
+    });
+    const snap = putImageData.mock.lastCall![0] as ImageData;
+    const want = new ImageData(240, 320);
+    getFilter('duotone').apply(shot(), want, 0);
+    expect(Array.from(snap.data.slice(0, 4))).toEqual(Array.from(want.data.slice(0, 4)));
+    expect(Array.from(snap.data.slice(0, 4))).not.toEqual([255, 0, 0, 255]);
   });
 });

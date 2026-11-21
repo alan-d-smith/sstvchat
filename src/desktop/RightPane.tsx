@@ -10,8 +10,9 @@ import { Icon } from '../components/Icon';
 import { SnapCanvas } from '../components/SnapCanvas';
 import { SendToList } from '../components/SendToList';
 import { LensCarousel } from '../components/LensCarousel';
-import { filterCss, grabSnap, imageFileToSnap, useCamera } from '../media/camera';
-import type { SnapFilter } from '../media/camera';
+import { Viewfinder } from '../components/Viewfinder';
+import { imageFileToSnap, useCamera, useViewfinder } from '../media/camera';
+import type { SnapFilter } from '../media/filters';
 import './RightPane.css';
 
 type OpenPane = Exclude<PaneMode, null>;
@@ -143,13 +144,14 @@ function Pane({ pane }: { pane: OpenPane }) {
 }
 
 /**
- * Live webcam in the 3:4 card (the exact frame the shutter captures) with the lens filters.
+ * Live webcam in the 3:4 card, drawn through the lens filter (the exact snap the shutter takes).
  * No camera → black card, and the shutter sends a placeholder snap. The gallery button sends a
  * photo from disk through the same filter.
  */
 function CameraCard({ onSnap }: { onSnap(image?: ImageData): void }) {
   const cam = useCamera(true);
   const [filter, setFilter] = useState<SnapFilter>('none');
+  const view = useViewfinder(cam, filter);
   const galleryRef = useRef<HTMLInputElement>(null);
 
   const onGalleryFile = (e: ChangeEvent<HTMLInputElement>) => {
@@ -160,15 +162,7 @@ function CameraCard({ onSnap }: { onSnap(image?: ImageData): void }) {
 
   return (
     <div className="rp-card rp-card--dark">
-      <video
-        ref={cam.videoRef}
-        className={`rp-video${cam.ready ? ' is-ready' : ''}${cam.mirrored ? ' is-mirrored' : ''}`}
-        style={{ filter: filterCss(filter) }}
-        autoPlay
-        muted
-        playsInline
-        aria-hidden="true"
-      />
+      <Viewfinder cam={cam} view={view} filter={filter} />
       <div className="rp-tools">
         <button type="button" className="rp-tool" aria-label="Flip camera" onClick={cam.flip}>
           <Icon name="flip" size={24} />
@@ -190,7 +184,7 @@ function CameraCard({ onSnap }: { onSnap(image?: ImageData): void }) {
         <Icon name="memories" size={28} />
       </button>
       <input ref={galleryRef} type="file" accept="image/*" hidden data-testid="gallery-input" onChange={onGalleryFile} />
-      <button type="button" className="rp-shutter" aria-label="Take snap" onClick={() => onSnap(grabSnap(cam, filter))} />
+      <button type="button" className="rp-shutter" aria-label="Take snap" onClick={() => onSnap(view.grab())} />
     </div>
   );
 }

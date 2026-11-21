@@ -4,8 +4,9 @@ import { Avatar } from '../components/Avatar';
 import { Icon } from '../components/Icon';
 import type { IconName } from '../components/Icon';
 import { LensCarousel } from '../components/LensCarousel';
-import { filterCss, grabSnap, imageFileToSnap, useCamera } from '../media/camera';
-import type { SnapFilter } from '../media/camera';
+import { Viewfinder } from '../components/Viewfinder';
+import { imageFileToSnap, useCamera, useViewfinder } from '../media/camera';
+import type { SnapFilter } from '../media/filters';
 import { useApp } from '../state/store';
 import { useFriends } from '../state/friendsContext';
 import { addFriendsLabel, badgeText } from '../state/friends';
@@ -46,8 +47,8 @@ function centreInScroller(scroller: HTMLElement, el: HTMLElement, smooth: boolea
  * shutter, filter lenses and lens categories at the bottom. Fills its container; the shared
  * bottom nav sits below it.
  *
- * The webcam shows in a 3:4 frame fitted to the width (exactly what the shutter captures), with
- * the active lens filter applied live. Without a camera (no API, insecure page, permission
+ * The webcam shows in a 3:4 frame fitted to the width, drawn through the active lens filter —
+ * exactly the snap the shutter captures. Without a camera (no API, insecure page, permission
  * denied) the viewfinder stays black and the shutter falls back to a placeholder snap. The
  * memories button picks a photo from the gallery instead and sends it through the same filter.
  */
@@ -60,6 +61,7 @@ export function CameraScreen() {
   // Release the camera while the preview, any other overlay or search covers this screen.
   const cam = useCamera(overlay === null && !searching);
   const [filter, setFilter] = useState<SnapFilter>('none');
+  const view = useViewfinder(cam, filter);
   const galleryRef = useRef<HTMLInputElement>(null);
 
   const onGalleryFile = (e: ChangeEvent<HTMLInputElement>) => {
@@ -97,15 +99,7 @@ export function CameraScreen() {
   return (
     <div className="cam" data-testid="camera">
       <div className="cam__view">
-        <video
-          ref={cam.videoRef}
-          className={`cam__video${cam.ready ? ' is-ready' : ''}${cam.mirrored ? ' is-mirrored' : ''}`}
-          style={{ filter: filterCss(filter) }}
-          autoPlay
-          muted
-          playsInline
-          aria-hidden="true"
-        />
+        <Viewfinder cam={cam} view={view} filter={filter} />
       </div>
 
       <div className="cam__top">
@@ -181,7 +175,7 @@ export function CameraScreen() {
           onClick={() => galleryRef.current?.click()}
         />
         <input ref={galleryRef} type="file" accept="image/*" hidden data-testid="gallery-input" onChange={onGalleryFile} />
-        <button type="button" className="cam__shutter" aria-label="Take snap" onClick={() => takeSnap(grabSnap(cam, filter))} />
+        <button type="button" className="cam__shutter" aria-label="Take snap" onClick={() => takeSnap(view.grab())} />
       </div>
 
       <div className="cam__lensbar">
