@@ -1,0 +1,27 @@
+/* Always 3:4: the parent sizes the width (or caps it), the image and scan line share one box. */
+.snap-canvas {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  overflow: hidden;
+  background: #000;
+}
+
+.snap-canvas__img {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.snap-canvas__scan {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  margin-left: -1px;
+  background: #fff;
+  box-shadow:
+    0 0 6px 1px color-mix(in srgb, var(--green) 85%, transparent),
+    0 0 14px 2px color-mix(in srgb, var(--green) 35%, transparent);
+  pointer-events: none;
+}

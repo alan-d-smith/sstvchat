@@ -1,0 +1,296 @@
+/*
+ * The pane is a size container so the 3:4 card can be "contained": at most 456 px wide,
+ * shrinking with the available height. Header and card share that width, as in the reference.
+ * Needs a definite height from its grid cell.
+ */
+.right-pane {
+  container-type: size;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+}
+
+.rp-inner {
+  display: flex;
+  flex-direction: column;
+  width: min(calc(100cqw - 24px), 456px, calc((100cqh - 72px) * 3 / 4));
+  height: 100%;
+  margin: 0 auto;
+}
+
+/* ---------- header (like the reference's call column) ---------- */
+
+.rp-head {
+  display: flex;
+  flex-shrink: 0;
+  gap: 10px;
+  align-items: center;
+  height: 60px;
+}
+
+.rp-round {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--btn-neutral);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.rp-round:hover { filter: brightness(0.96); }
+
+.rp-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.rp-name {
+  margin: 0;
+  overflow: hidden;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.rp-sub {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  color: var(--green);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.rp-pill {
+  display: inline-flex;
+  flex-shrink: 0;
+  gap: 8px;
+  align-items: center;
+  height: 36px;
+  margin-left: auto;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 18px;
+  background: var(--btn-neutral);
+  color: var(--text);
+  font: inherit;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.rp-pill.is-stop {
+  padding: 0 16px 0 18px;
+  background: var(--red);
+  color: #fff;
+}
+
+.rp-pill:hover { filter: brightness(0.96); }
+.rp-pill:active,
+.rp-round:active { transform: scale(0.96); }
+
+/* ---------- card ---------- */
+
+.rp-card {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  overflow: hidden;
+  border-radius: var(--radius-card);
+}
+
+/* Camera, preview and viewer are always black, whatever the theme. */
+.rp-card--dark {
+  background: #000;
+  color: #fff;
+}
+
+.rp-card--list {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border-card);
+  background: var(--bg-elev);
+}
+
+/* ---------- camera ---------- */
+
+.rp-tools {
+  position: absolute;
+  top: 12px;
+  right: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
+}
+
+.rp-tool {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #fff;
+  cursor: pointer;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.45));
+}
+
+.rp-tool:hover { background: rgba(255, 255, 255, 0.1); }
+
+.rp-tool--ring {
+  width: 32px;
+  height: 32px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.rp-shutter {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  width: 64px;
+  height: 64px;
+  padding: 0;
+  border: 5px solid #fff;
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+  transform: translateX(-50%);
+  transition: transform 100ms ease, background-color 100ms ease;
+}
+
+.rp-shutter:hover { background: rgba(255, 255, 255, 0.12); }
+.rp-shutter:active { transform: translateX(-50%) scale(0.92); }
+
+.rp-tool:focus-visible,
+.rp-shutter:focus-visible,
+.rp-sendto:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+
+/* ---------- preview ---------- */
+
+.rp-capture {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.rp-discard {
+  position: absolute;
+  top: 12px;
+  left: 10px;
+}
+
+.rp-sendto {
+  position: absolute;
+  right: 14px;
+  bottom: 16px;
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  height: 44px;
+  padding: 0 16px 0 20px;
+  border: 0;
+  border-radius: 22px;
+  background: var(--blue);
+  color: #fff;
+  font: inherit;
+  font-size: 17px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
+}
+
+.rp-sendto:hover { filter: brightness(1.05); }
+.rp-sendto:active { transform: scale(0.97); }
+
+/* ---------- send to ---------- */
+
+.rp-list-head {
+  display: grid;
+  flex-shrink: 0;
+  grid-template-columns: 36px 1fr 36px;
+  align-items: center;
+  height: 56px;
+  padding: 0 12px;
+}
+
+.rp-list-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.rp-card--list .send-to {
+  flex: 1;
+  min-height: 0;
+}
+
+/* ---------- viewer ---------- */
+
+.rp-overlay {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 12px 14px 28px;
+  background: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0));
+  pointer-events: none;
+}
+
+.rp-overlay-text {
+  min-width: 0;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+}
+
+.rp-overlay-name {
+  overflow: hidden;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.25;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.rp-overlay-time {
+  margin-left: 6px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.rp-readout {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.3;
+}
+
+.rp-readout.is-live .icon { color: var(--green); }
+
+@media (prefers-reduced-motion: reduce) {
+  .rp-shutter { transition: none; }
+}

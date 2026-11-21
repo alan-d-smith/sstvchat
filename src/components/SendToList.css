@@ -1,0 +1,183 @@
+.send-to {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: var(--bg-elev);
+  color: var(--text);
+  font-family: var(--font);
+}
+
+/* ---------- search ---------- */
+
+.send-to__search {
+  display: flex;
+  flex-shrink: 0;
+  gap: 8px;
+  align-items: center;
+  height: 36px;
+  margin: 4px 12px 6px;
+  padding: 0 14px;
+  border: 1px solid var(--border-input);
+  border-radius: 18px;
+  color: var(--text-2);
+  cursor: text;
+}
+
+.send-to__search:focus-within { border-color: var(--blue); }
+
+.send-to__search input {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 16px;
+}
+
+.send-to__search input::placeholder { color: var(--text-2); }
+.send-to__search input::-webkit-search-cancel-button { display: none; }
+
+/* ---------- list ---------- */
+
+.send-to__scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.send-to__section {
+  padding: 10px 16px 4px;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.send-to__empty {
+  padding: 16px;
+  color: var(--text-2);
+  font-size: 14px;
+}
+
+.send-to__list {
+  margin: 0;
+  padding: 0 0 8px;
+  list-style: none;
+}
+
+.send-to__row {
+  position: relative;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  height: 56px;
+  padding: 0 16px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.send-to__row:hover { background: var(--bg-hover); }
+
+.send-to__name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 16px;
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* Native checkbox stays focusable and clickable for a11y, the circle is drawn below. */
+.send-to__input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.send-to__check {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 2px solid var(--border-input);
+  border-radius: 50%;
+  color: #fff;
+  transition: background-color 120ms ease, border-color 120ms ease;
+}
+
+.send-to__row.is-on .send-to__check {
+  border-color: var(--blue);
+  background: var(--blue);
+}
+
+.send-to__input:focus-visible + .send-to__check {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+
+.send-to__check .icon { stroke-width: 3; }
+
+/* ---------- bottom bar ---------- */
+
+.send-to__bar {
+  display: flex;
+  flex-shrink: 0;
+  gap: 12px;
+  align-items: center;
+  height: 60px;
+  padding: 0 10px 0 16px;
+  background: var(--btn-neutral);
+  color: var(--text-2);
+  transition: background-color 150ms ease, color 150ms ease;
+}
+
+.send-to__bar.is-active {
+  background: var(--blue);
+  color: #fff;
+}
+
+.send-to__names {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 15px;
+  font-weight: 700;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.send-to__send {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.send-to__bar.is-active .send-to__send {
+  background: #fff;
+  color: var(--blue);
+}
+
+.send-to__send:disabled { cursor: default; opacity: 0.6; }
+.send-to__send:not(:disabled):active { transform: scale(0.94); }
+.send-to__send:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .send-to__check,
+  .send-to__bar { transition: none; }
+}
